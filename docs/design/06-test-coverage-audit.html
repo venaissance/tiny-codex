@@ -1,0 +1,232 @@
+<h2>测试覆盖审计：目标 → 测试映射</h2>
+<p class="subtitle">检查每个用户目标是否有对应的测试覆盖</p>
+
+<style>
+  .audit-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .audit-table th { text-align:left; padding:10px 12px; border-bottom:2px solid var(--border); color:var(--text-secondary); }
+  .audit-table td { padding:8px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  .status-ok { color:#34c759; font-weight:600; }
+  .status-gap { color:#ff3b30; font-weight:600; }
+  .status-partial { color:#ff9f0a; font-weight:600; }
+  .gap-box { background:rgba(255,59,48,0.08); border:1px solid rgba(255,59,48,0.2); border-radius:8px; padding:12px 16px; margin:8px 0; }
+  .ok-box { background:rgba(52,199,89,0.08); border:1px solid rgba(52,199,89,0.2); border-radius:8px; padding:12px 16px; margin:8px 0; }
+  .section-divider { background:var(--bg-tertiary); font-weight:600; color:var(--text-primary); }
+</style>
+
+<h3>一、Agent 框架层</h3>
+<table class="audit-table">
+  <thead><tr><th>用户目标</th><th>需要的测试</th><th>计划中状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Agent 能打开项目并编辑代码</td>
+      <td>集成测试：Agent + 真实文件工具（创建/读取/修改文件）</td>
+      <td><span class="status-ok">已覆盖</span><br>agent-tools.test.ts</td>
+    </tr>
+    <tr>
+      <td>Agent ReAct Loop 正常工作</td>
+      <td>单元测试：stream() 返回消息、工具执行、maxSteps 限制</td>
+      <td><span class="status-ok">已覆盖</span><br>agent.test.ts</td>
+    </tr>
+    <tr>
+      <td>Agent 能中止执行</td>
+      <td>单元测试：abort() 停止循环</td>
+      <td><span class="status-ok">已覆盖</span><br>agent.test.ts</td>
+    </tr>
+    <tr>
+      <td>8 个标准工具正常工作</td>
+      <td>单元测试：每个工具独立测试</td>
+      <td><span class="status-partial">7/8 覆盖</span><br>缺少 ask_user 测试</td>
+    </tr>
+    <tr>
+      <td>中间件系统工作</td>
+      <td>单元测试：生命周期钩子调用顺序、prompt 修改</td>
+      <td><span class="status-ok">已覆盖</span><br>middleware.test.ts</td>
+    </tr>
+    <tr>
+      <td>上下文压缩</td>
+      <td>单元测试：shouldCompact / estimateTokens<br>集成测试：compact() 用 mock LLM 生成摘要</td>
+      <td><span class="status-partial">部分覆盖</span><br>单元测试有，集成测试缺失</td>
+    </tr>
+    <tr>
+      <td>Skills 系统</td>
+      <td>单元测试：SKILL.md 解析<br>集成测试：Skills 加载 + prompt 注入 + 自定义工具注册</td>
+      <td><span class="status-partial">部分覆盖</span><br>解析有，集成测试缺失</td>
+    </tr>
+    <tr>
+      <td>Git Worktree 管理</td>
+      <td>单元测试：create / remove / list / merge</td>
+      <td><span class="status-gap">缺失</span><br>文件结构中有但无测试</td>
+    </tr>
+    <tr>
+      <td>OpenAI 兼容 Provider</td>
+      <td>单元测试：消息转换（内部↔OpenAI）<br>含 reasoning_content（豆包/DeepSeek）</td>
+      <td><span class="status-ok">已覆盖</span><br>openai-converter.test.ts</td>
+    </tr>
+    <tr>
+      <td>Anthropic 原生 Provider</td>
+      <td>单元测试：消息转换（内部↔Anthropic）<br>含 extended thinking</td>
+      <td><span class="status-ok">已覆盖</span><br>anthropic-converter.test.ts</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="margin-top:32px;">二、Electron App 层</h3>
+<table class="audit-table">
+  <thead><tr><th>用户目标</th><th>需要的测试</th><th>计划中状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>App 能启动并显示窗口</td>
+      <td>E2E：Electron 窗口打开 + 标题正确</td>
+      <td><span class="status-partial">骨架有</span><br>app-launch.test.ts 但无实现</td>
+    </tr>
+    <tr>
+      <td>SQLite 持久化线程和消息</td>
+      <td>集成测试：CRUD 操作</td>
+      <td><span class="status-ok">已覆盖</span><br>thread-manager.test.ts</td>
+    </tr>
+    <tr>
+      <td>线程管理（创建/切换/删除）</td>
+      <td>E2E：完整线程生命周期</td>
+      <td><span class="status-gap">缺失</span><br>file structure 中有但无详细测试</td>
+    </tr>
+    <tr>
+      <td>模型选择器</td>
+      <td>组件测试：切换模型<br>E2E：选择模型后 Agent 使用正确模型</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>Open/Commit 操作</td>
+      <td>E2E：打开项目目录 + git commit</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>Local / Worktree 模式切换</td>
+      <td>E2E：切换模式 → Agent 在正确环境执行</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>IPC 通信（主进程↔渲染进程）</td>
+      <td>集成测试：IPC handler 正确转发</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="margin-top:32px;">三、UI 交互层</h3>
+<table class="audit-table">
+  <thead><tr><th>用户目标</th><th>需要的测试</th><th>计划中状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>欢迎页 + 快捷建议卡片</td>
+      <td>组件测试：Welcome 组件渲染 + 卡片点击</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>消息渲染（文本/Thinking/工具/Diff）</td>
+      <td>组件测试：各类消息类型渲染正确</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>输入框 Skill 标签（@触发）</td>
+      <td>组件测试：@ 弹出选择器 → 插入标签 → Backspace 删除</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>Sidebar 线程列表 + Skills 列表</td>
+      <td>组件测试：列表渲染 + 点击切换</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>键盘快捷键</td>
+      <td>E2E：Cmd+N 新线程、Cmd+O 打开项目等</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="margin-top:32px;">四、预览系统</h3>
+<table class="audit-table">
+  <thead><tr><th>用户目标</th><th>需要的测试</th><th>计划中状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Monaco 代码高亮编辑</td>
+      <td>组件测试：MonacoView 渲染 + 语法高亮 + 编辑</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>Monaco Diff 视图</td>
+      <td>组件测试：DiffView 渲染修改前后对比</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>Markdown 预览（含本地图片）</td>
+      <td>组件测试：MarkdownView 渲染 + 图片路径解析</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>图片预览（单张/画廊/AI 生成）</td>
+      <td>组件测试：ImageView 渲染多种图片格式</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>PDF 预览</td>
+      <td>组件测试：PdfView 渲染 + 翻页</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>CSV/JSON 预览</td>
+      <td>组件测试：CsvJsonView 表格/树渲染</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>HTML 预览</td>
+      <td>组件测试：HtmlView webview 渲染</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>React Dev 实时预览（HMR）</td>
+      <td>E2E：iframe 加载 localhost + 文件修改后刷新</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="margin-top:32px;">五、端到端场景</h3>
+<table class="audit-table">
+  <thead><tr><th>完整场景</th><th>需要的 E2E 测试</th><th>计划中状态</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>用户打开项目 → 新建线程 → 发消息 → Agent 编辑代码 → 看到 Diff → Commit</td>
+      <td>E2E 全流程测试</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>用户写博客 → Agent 生成 Markdown → 预览 → 用 Skill 生成配图 → 预览图片</td>
+      <td>E2E 全流程测试</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+    <tr>
+      <td>用户切换模型 → 切换 Worktree 模式 → Agent 在隔离环境工作</td>
+      <td>E2E 全流程测试</td>
+      <td><span class="status-gap">缺失</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="margin-top:32px;">覆盖统计</h3>
+<div style="display:flex;gap:16px;margin:16px 0;">
+  <div class="ok-box" style="flex:1;text-align:center;">
+    <div style="font-size:32px;font-weight:700;color:#34c759;">10</div>
+    <div>已覆盖</div>
+  </div>
+  <div style="flex:1;text-align:center;background:rgba(255,159,10,0.08);border:1px solid rgba(255,159,10,0.2);border-radius:8px;padding:12px;">
+    <div style="font-size:32px;font-weight:700;color:#ff9f0a;">4</div>
+    <div>部分覆盖</div>
+  </div>
+  <div class="gap-box" style="flex:1;text-align:center;">
+    <div style="font-size:32px;font-weight:700;color:#ff3b30;">21</div>
+    <div>缺失</div>
+  </div>
+</div>
+
+<p style="margin-top:16px;font-weight:600;">结论：当前计划只覆盖了 Agent 框架核心（Phase 1-6），占总目标的约 40%。Phase 7-9 标注为 "TBD"，包含全部 UI、预览系统和 E2E 场景测试，共 21 项缺失。</p>

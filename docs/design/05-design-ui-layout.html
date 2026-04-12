@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>tiny-codex UI Layout Design</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f5f5f7;
+    color: #1d1d1f;
+    padding: 24px;
+    line-height: 1.5;
+  }
+
+  h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin: 32px 0 12px; }
+  .subtitle { color: #86868b; font-size: 0.95rem; margin-bottom: 24px; }
+  .section-label { font-size: 0.75rem; color: #86868b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  /* ===== App Mockup ===== */
+  .app-frame {
+    background: #1e1e2e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    margin: 16px 0 32px;
+  }
+
+  .app-titlebar {
+    background: #181825;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #313244;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #f38ba8; }
+  .dot-yellow { background: #f9e2af; }
+  .dot-green { background: #a6e3a1; }
+  .titlebar-text { color: #6c7086; font-size: 13px; margin-left: 8px; }
+  .titlebar-actions { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  .titlebar-btn { background: #313244; color: #cdd6f4; padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #45475a; }
+  .titlebar-btn-primary { background: #89b4fa; color: #1e1e2e; border-color: #89b4fa; }
+  .titlebar-badge { color: #a6e3a1; font-size: 12px; }
+
+  .app-body { display: flex; min-height: 520px; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    background: #1e1e2e;
+    border-right: 1px solid #313244;
+    padding: 12px 0;
+    flex-shrink: 0;
+  }
+  .sidebar-section { padding: 8px 16px; }
+  .sidebar-section-title { font-size: 11px; color: #6c7086; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .sidebar-item {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #cdd6f4;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+  .sidebar-item:hover { background: #313244; }
+  .sidebar-item.active { background: #313244; color: #89b4fa; }
+  .sidebar-item-icon { font-size: 14px; width: 18px; text-align: center; }
+  .sidebar-item-badge { margin-left: auto; font-size: 11px; color: #6c7086; }
+  .sidebar-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px; margin: 4px 16px; border-radius: 6px;
+    background: #313244; color: #cdd6f4; font-size: 13px;
+    border: 1px solid #45475a; cursor: pointer;
+  }
+
+  /* Chat Panel */
+  .chat-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #1e1e2e;
+    min-width: 0;
+  }
+  .chat-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid #313244;
+    font-size: 14px;
+    color: #cdd6f4;
+    font-weight: 500;
+  }
+  .chat-messages {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+  .msg { margin-bottom: 16px; }
+  .msg-user {
+    background: #313244;
+    color: #cdd6f4;
+    padding: 10px 14px;
+    border-radius: 12px 12px 4px 12px;
+    font-size: 13px;
+    max-width: 80%;
+    margin-left: auto;
+  }
+  .msg-assistant {
+    color: #cdd6f4;
+    font-size: 13px;
+    max-width: 90%;
+  }
+  .msg-thinking {
+    background: #181825;
+    border-left: 3px solid #6c7086;
+    padding: 8px 12px;
+    border-radius: 0 8px 8px 0;
+    color: #6c7086;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .msg-tool {
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: 'SF Mono', monospace;
+    color: #a6adc8;
+    margin-bottom: 8px;
+  }
+  .msg-tool-label {
+    color: #89b4fa;
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+  }
+  .msg-diff {
+    background: #181825;
+    border: 1px solid #313244;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .msg-diff-header {
+    background: #313244;
+    padding: 6px 12px;
+    font-size: 11px;
+    color: #6c7086;
+    display: flex;
+    justify-content: space-between;
+  }
+  .msg-diff-body { padding: 8px 12px; font-family: 'SF Mono', monospace; font-size: 12px; }
+  .diff-del { color: #f38ba8; }
+  .diff-add { color: #a6e3a1; }
+
+  /* Input Area */
+  .chat-input-area {
+    padding: 12px 20px;
+    border-top: 1px solid #313244;
+  }
+  .chat-input-box {
+    background: #313244;
+    border: 1px solid #45475a;
+    border-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .skill-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #45475a;
+    color: #f9e2af;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .skill-tag-icon { font-size: 11px; }
+  .input-text { color: #cdd6f4; font-size: 14px; }
+  .input-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid #45475a;
+  }
+  .input-toolbar-btn {
+    font-size: 12px;
+    color: #6c7086;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .input-toolbar-btn:hover { background: #45475a; color: #cdd6f4; }
+  .model-picker {
+    font-size: 12px;
+    color: #89b4fa;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mode-picker {
+    margin-left: auto;
+    display: flex;
+    gap: 0;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #45475a;
+  }
+  .mode-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #6c7086;
+    background: #313244;
+    cursor: pointer;
+  }
+  .mode-btn.active { color: #cdd6f4; background: #45475a; }
+  .send-btn {
+    margin-left: 8px;
+    background: #89b4fa;
+    color: #1e1e2e;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Preview Panel */
+  .preview-panel {
+    width: 380px;
+    background: #181825;
+    border-left: 1px solid #313244;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .preview-tabs {
+    display: flex;
+    padding: 0;
+    border-bottom: 1px solid #313244;
+    background: #1e1e2e;
+  }
+  .preview-tab {
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #6c7086;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .preview-tab.active { color: #89b4fa; border-bottom-color: #89b4fa; }
+  .preview-body { flex: 1; padding: 16px; overflow-y: auto; }
+
+  /* Monaco mockup */
+  .monaco-mock {
+    background: #1e1e2e;
+    border-radius: 8px;
+    border: 1px solid #313244;
+    overflow: hidden;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 12px;
+  }
+  .monaco-mock-toolbar {
+    background: #181825;
+    padding: 4px 8px;
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #313244;
+    font-size: 11px;
+    color: #6c7086;
+  }
+  .monaco-mock-body { padding: 8px 0; }
+  .monaco-line {
+    padding: 1px 12px 1px 40px;
+    position: relative;
+    color: #cdd6f4;
+    line-height: 1.6;
+  }
+  .monaco-line-num {
+    position: absolute;
+    left: 8px;
+    color: #45475a;
+    width: 24px;
+    text-align: right;
+  }
+  .kw { color: #cba6f7; }
+  .str { color: #a6e3a1; }
+  .fn { color: #89b4fa; }
+  .typ { color: #f9e2af; }
+  .cm { color: #6c7086; }
+  .tag { color: #f38ba8; }
+  .attr { color: #89b4fa; }
+  .prop { color: #89dceb; }
+
+  /* Markdown preview mockup */
+  .md-preview {
+    color: #cdd6f4;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .md-preview h1 { font-size: 1.3rem; color: #cdd6f4; margin-bottom: 8px; border-bottom: 1px solid #313244; padding-bottom: 8px; }
+  .md-preview h2 { font-size: 1.1rem; color: #cdd6f4; margin: 16px 0 8px; }
+  .md-preview p { margin-bottom: 8px; color: #a6adc8; }
+  .md-preview code { background: #313244; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #f38ba8; }
+  .md-preview img-placeholder {
+    display: block;
+    background: #313244;
+    border-radius: 8px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c7086;
+    font-size: 12px;
+    margin: 12px 0;
+    border: 1px dashed #45475a;
+  }
+
+  /* Quick Start Cards */
+  .quick-cards { display: flex; gap: 12px; margin: 16px 20px; }
+  .quick-card {
+    background: #313244;
+    border: 1px solid #45475a;
+    border-radius: 10px;
+    padding: 12px;
+    flex: 1;
+    cursor: pointer;
+    font-size: 12px;
+    color: #a6adc8;
+  }
+  .quick-card:hover { border-color: #89b4fa; }
+  .quick-card-icon { font-size: 20px; margin-bottom: 8px; }
+  .quick-card-title { color: #cdd6f4; font-weight: 500; margin-bottom: 4px; }
+
+  /* Welcome screen */
+  .welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: #6c7086;
+  }
+  .welcome-icon { font-size: 48px; margin-bottom: 16px; }
+  .welcome-title { font-size: 1.3rem; color: #cdd6f4; font-weight: 600; margin-bottom: 4px; }
+  .welcome-sub { font-size: 0.9rem; color: #6c7086; }
+
+  /* Annotation labels */
+  .anno {
+    position: absolute;
+    font-size: 11px;
+    color: #f38ba8;
+    font-weight: 600;
+    background: rgba(243,139,168,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<h2>tiny-codex UI 布局与交互设计</h2>
+<p class="subtitle">三栏布局：Sidebar / Chat Panel / Preview Panel</p>
+
+<!-- ===== Mockup 1: Active Chat with Code Diff ===== -->
+<p class="section-label">场景 1：Agent 正在编辑 React 组件</p>
+<div class="app-frame">
+  <div class="app-titlebar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <span class="titlebar-text">tiny-codex — my-react-app</span>
+    <div class="titlebar-actions">
+      <span class="titlebar-btn">Open</span>
+      <span class="titlebar-btn titlebar-btn-primary">Commit</span>
+      <span class="titlebar-badge">+12 -3</span>
+    </div>
+  </div>
+  <div class="app-body">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-btn">+ New thread</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Threads</div>
+        <div class="sidebar-item active">
+          <span class="sidebar-item-icon">&#9998;</span>
+          Button loading 状态
+          <span class="sidebar-item-badge">2m</span>
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#9998;</span>
+          修复 NavBar 样式
+          <span class="sidebar-item-badge">1h</span>
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#128196;</span>
+          写技术博客
+          <span class="sidebar-item-badge">3h</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Skills</div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#127912;</span>
+          Image Gen
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#128221;</span>
+          Tech Writer
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#128269;</span>
+          Code Review
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">Button loading 状态</div>
+      <div class="chat-messages">
+        <div class="msg">
+          <div class="msg-user">帮我给 Button 组件加一个 loading 状态</div>
+        </div>
+        <div class="msg">
+          <div class="msg-assistant">
+            <div class="msg-thinking">思考：需要先看看 Button 组件的现有实现...</div>
+            <div class="msg-tool">
+              <div class="msg-tool-label">read_file</div>
+              src/components/Button.tsx
+            </div>
+            <div style="margin-bottom:8px;">我来给 Button 添加 loading prop 和加载动画：</div>
+            <div class="msg-diff">
+              <div class="msg-diff-header">
+                <span>src/components/Button.tsx</span>
+                <span>str_replace</span>
+              </div>
+              <div class="msg-diff-body">
+                <div class="diff-del">- interface ButtonProps {</div>
+                <div class="diff-add">+ interface ButtonProps {</div>
+                <div class="diff-add">+   loading?: boolean;</div>
+                <div>&nbsp;&nbsp;   children: React.ReactNode;</div>
+                <div>&nbsp;&nbsp;   onClick?: () => void;</div>
+              </div>
+            </div>
+            <div>已完成。Button 现在支持 <code style="background:#313244;color:#f38ba8;padding:2px 6px;border-radius:4px;font-size:12px;">loading</code> prop，加载时显示 spinner 并禁用点击。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="chat-input-area">
+        <div class="chat-input-box">
+          <div>
+            <span class="input-text" style="color:#6c7086;">Ask anything, @ to add skills...</span>
+          </div>
+          <div class="input-toolbar">
+            <span class="input-toolbar-btn">+</span>
+            <span class="model-picker">Claude Sonnet 4 &#9662;</span>
+            <span class="input-toolbar-btn" style="color:#a6adc8;">Extra High &#9662;</span>
+            <div class="mode-picker">
+              <span class="mode-btn active">Local</span>
+              <span class="mode-btn">Worktree</span>
+            </div>
+            <span class="send-btn">&#8593;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Preview Panel -->
+    <div class="preview-panel">
+      <div class="preview-tabs">
+        <div class="preview-tab active">Preview</div>
+        <div class="preview-tab">Code</div>
+        <div class="preview-tab">Diff</div>
+      </div>
+      <div class="preview-body">
+        <!-- Simulated React preview -->
+        <div style="background:#1e1e2e;padding:24px;border-radius:8px;border:1px solid #313244;">
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="font-size:14px;color:#6c7086;margin-bottom:16px;">Component Preview</div>
+            <!-- Normal button -->
+            <div style="margin-bottom:12px;">
+              <span style="background:#89b4fa;color:#1e1e2e;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;">Submit</span>
+            </div>
+            <!-- Loading button -->
+            <div>
+              <span style="background:#45475a;color:#6c7086;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:14px;height:14px;border:2px solid #6c7086;border-top-color:transparent;border-radius:50;animation:none;">&#8635;</span>
+                Loading...
+              </span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#45475a;text-align:center;">localhost:3000 (HMR)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Mockup 2: Welcome Screen ===== -->
+<p class="section-label">场景 2：欢迎页 + 快捷建议卡片</p>
+<div class="app-frame">
+  <div class="app-titlebar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <span class="titlebar-text">tiny-codex</span>
+    <div class="titlebar-actions">
+      <span class="titlebar-btn">Open</span>
+    </div>
+  </div>
+  <div class="app-body">
+    <div class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-btn">+ New thread</div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Recent</div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#9998;</span>
+          修复登录页 Bug
+          <span class="sidebar-item-badge">2d</span>
+        </div>
+        <div class="sidebar-item">
+          <span class="sidebar-item-icon">&#128196;</span>
+          React Hooks 博客
+          <span class="sidebar-item-badge">3d</span>
+        </div>
+      </div>
+    </div>
+    <div class="chat-panel">
+      <div class="welcome">
+        <div class="welcome-icon">&#128640;</div>
+        <div class="welcome-title">Let's build</div>
+        <div class="welcome-sub">Open a project or start a new thread</div>
+      </div>
+      <div class="quick-cards">
+        <div class="quick-card">
+          <div class="quick-card-icon">&#128187;</div>
+          <div class="quick-card-title">Create a React page</div>
+          Build a new component from scratch
+        </div>
+        <div class="quick-card">
+          <div class="quick-card-icon">&#128270;</div>
+          <div class="quick-card-title">Find and fix bugs</div>
+          Scan codebase for issues
+        </div>
+        <div class="quick-card">
+          <div class="quick-card-icon">&#128221;</div>
+          <div class="quick-card-title">Write a tech blog</div>
+          Generate Markdown article
+        </div>
+        <div class="quick-card">
+          <div class="quick-card-icon">&#127912;</div>
+          <div class="quick-card-title">Generate images</div>
+          Create visuals with AI
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-input-box">
+          <div>
+            <span class="input-text" style="color:#6c7086;">Ask anything, @ to add skills...</span>
+          </div>
+          <div class="input-toolbar">
+            <span class="input-toolbar-btn">+</span>
+            <span class="model-picker">Claude Sonnet 4 &#9662;</span>
+            <span class="input-toolbar-btn" style="color:#a6adc8;">Medium &#9662;</span>
+            <div class="mode-picker">
+              <span class="mode-btn active">Local</span>
+              <span class="mode-btn">Worktree</span>
+            </div>
+            <span class="send-btn">&#8593;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Mockup 3: Markdown Writing + Image Gen ===== -->
+<p class="section-label">场景 3：技术写作 + Skill 标签 + 图片生成</p>
+<div class="app-frame">
+  <div class="app-titlebar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <span class="titlebar-text">tiny-codex — my-blog</span>
+    <div class="titlebar-actions">
+      <span class="titlebar-btn">Open</span>
+      <span class="titlebar-btn titlebar-btn-primary">Commit</span>
+      <span class="titlebar-badge">+85 -0</span>
+    </div>
+  </div>
+  <div class="app-body">
+    <div class="sidebar" style="width:180px;">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Threads</div>
+        <div class="sidebar-item active">
+          <span class="sidebar-item-icon">&#128196;</span>
+          React Hooks 博客
+        </div>
+      </div>
+    </div>
+    <div class="chat-panel">
+      <div class="chat-header">React Hooks 博客</div>
+      <div class="chat-messages">
+        <div class="msg">
+          <div class="msg-user">
+            <span class="skill-tag"><span class="skill-tag-icon">&#127912;</span> Image Gen</span>
+            帮文章的 "useState 原理" 章节生成一张配图
+          </div>
+        </div>
+        <div class="msg">
+          <div class="msg-assistant">
+            <div class="msg-thinking">正在通过 Image Gen Skill 生成配图...</div>
+            <div class="msg-tool">
+              <div class="msg-tool-label">generate_image</div>
+              prompt: "A clean diagram showing React useState hook lifecycle, ..."
+            </div>
+            <div style="margin-bottom:8px;">配图已生成并保存到 <code style="background:#313244;color:#f38ba8;padding:2px 6px;border-radius:4px;font-size:12px;">images/useState-diagram.png</code></div>
+            <div class="msg-tool">
+              <div class="msg-tool-label">str_replace</div>
+              blog/react-hooks.md → 插入 ![useState 原理](./images/useState-diagram.png)
+            </div>
+            <div>已将配图插入到文章的 useState 原理章节。</div>
+          </div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <div class="chat-input-box">
+          <div>
+            <span class="input-text" style="color:#6c7086;">Ask anything, @ to add skills...</span>
+          </div>
+          <div class="input-toolbar">
+            <span class="input-toolbar-btn">+</span>
+            <span class="model-picker">GPT-4o &#9662;</span>
+            <span class="input-toolbar-btn" style="color:#a6adc8;">High &#9662;</span>
+            <div class="mode-picker">
+              <span class="mode-btn active">Local</span>
+              <span class="mode-btn">Worktree</span>
+            </div>
+            <span class="send-btn">&#8593;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Preview: Markdown with Image -->
+    <div class="preview-panel">
+      <div class="preview-tabs">
+        <div class="preview-tab active">Markdown</div>
+        <div class="preview-tab">Code</div>
+        <div class="preview-tab">Image</div>
+      </div>
+      <div class="preview-body">
+        <div class="md-preview">
+          <h1>深入理解 React Hooks</h1>
+          <p>React Hooks 是 React 16.8 引入的特性，让函数组件也能使用状态和副作用...</p>
+          <h2>useState 原理</h2>
+          <p><code>useState</code> 是最基础的 Hook，它允许函数组件拥有自己的状态...</p>
+          <!-- Image placeholder -->
+          <div style="background:#313244;border-radius:8px;height:140px;display:flex;align-items:center;justify-content:center;color:#a6adc8;font-size:12px;margin:12px 0;border:1px solid #45475a;flex-direction:column;gap:8px;">
+            <span style="font-size:32px;">&#127912;</span>
+            <span>useState-diagram.png</span>
+            <span style="color:#6c7086;font-size:11px;">AI Generated • 1024x768</span>
+          </div>
+          <p>当组件调用 <code>setState</code> 时，React 会触发重新渲染，并在下一次渲染时返回更新后的值...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Mockup 4: Code Editing with Monaco ===== -->
+<p class="section-label">场景 4：Preview Panel 的 Code/Diff 标签 — Monaco 编辑器</p>
+<div class="app-frame" style="min-height:auto;">
+  <div class="app-titlebar">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <span class="titlebar-text">Preview Panel — Code & Diff 视图</span>
+  </div>
+  <div style="display:flex;">
+    <!-- Code View -->
+    <div style="flex:1;border-right:1px solid #313244;">
+      <div class="preview-tabs">
+        <div class="preview-tab">Preview</div>
+        <div class="preview-tab active">Code</div>
+        <div class="preview-tab">Diff</div>
+      </div>
+      <div style="padding:8px;">
+        <div class="monaco-mock">
+          <div class="monaco-mock-toolbar">
+            <span>src/components/Button.tsx</span>
+            <span style="margin-left:auto;">TypeScript</span>
+          </div>
+          <div class="monaco-mock-body">
+            <div class="monaco-line"><span class="monaco-line-num">1</span><span class="kw">import</span> React <span class="kw">from</span> <span class="str">'react'</span>;</div>
+            <div class="monaco-line"><span class="monaco-line-num">2</span></div>
+            <div class="monaco-line"><span class="monaco-line-num">3</span><span class="kw">interface</span> <span class="typ">ButtonProps</span> {</div>
+            <div class="monaco-line"><span class="monaco-line-num">4</span>  <span class="prop">loading</span>?: <span class="typ">boolean</span>;</div>
+            <div class="monaco-line"><span class="monaco-line-num">5</span>  <span class="prop">children</span>: <span class="typ">React.ReactNode</span>;</div>
+            <div class="monaco-line"><span class="monaco-line-num">6</span>  <span class="prop">onClick</span>?: () =&gt; <span class="typ">void</span>;</div>
+            <div class="monaco-line"><span class="monaco-line-num">7</span>}</div>
+            <div class="monaco-line"><span class="monaco-line-num">8</span></div>
+            <div class="monaco-line"><span class="monaco-line-num">9</span><span class="kw">export function</span> <span class="fn">Button</span>({ <span class="prop">loading</span>, <span class="prop">children</span>, <span class="prop">onClick</span> }: <span class="typ">ButtonProps</span>) {</div>
+            <div class="monaco-line"><span class="monaco-line-num">10</span>  <span class="kw">return</span> (</div>
+            <div class="monaco-line"><span class="monaco-line-num">11</span>    &lt;<span class="tag">button</span> <span class="attr">disabled</span>={<span class="prop">loading</span>} <span class="attr">onClick</span>={<span class="prop">onClick</span>}&gt;</div>
+            <div class="monaco-line"><span class="monaco-line-num">12</span>      {<span class="prop">loading</span> ? <span class="str">'Loading...'</span> : <span class="prop">children</span>}</div>
+            <div class="monaco-line"><span class="monaco-line-num">13</span>    &lt;/<span class="tag">button</span>&gt;</div>
+            <div class="monaco-line"><span class="monaco-line-num">14</span>  );</div>
+            <div class="monaco-line"><span class="monaco-line-num">15</span>}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Diff View -->
+    <div style="flex:1;">
+      <div class="preview-tabs">
+        <div class="preview-tab">Preview</div>
+        <div class="preview-tab">Code</div>
+        <div class="preview-tab active">Diff</div>
+      </div>
+      <div style="padding:8px;">
+        <div class="monaco-mock">
+          <div class="monaco-mock-toolbar">
+            <span>src/components/Button.tsx</span>
+            <span style="margin-left:auto;color:#a6e3a1;">+8</span>
+            <span style="color:#f38ba8;">-2</span>
+          </div>
+          <div class="monaco-mock-body">
+            <div class="monaco-line"><span class="monaco-line-num">3</span><span class="kw">interface</span> <span class="typ">ButtonProps</span> {</div>
+            <div class="monaco-line" style="background:rgba(243,139,168,0.1);"><span class="monaco-line-num" style="color:#f38ba8;">-</span><span class="diff-del">  children: React.ReactNode;</span></div>
+            <div class="monaco-line" style="background:rgba(166,227,161,0.1);"><span class="monaco-line-num" style="color:#a6e3a1;">+</span><span class="diff-add">  loading?: boolean;</span></div>
+            <div class="monaco-line" style="background:rgba(166,227,161,0.1);"><span class="monaco-line-num" style="color:#a6e3a1;">+</span><span class="diff-add">  children: React.ReactNode;</span></div>
+            <div class="monaco-line"><span class="monaco-line-num">6</span>  <span class="prop">onClick</span>?: () =&gt; <span class="typ">void</span>;</div>
+            <div class="monaco-line"><span class="monaco-line-num">7</span>}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Preview Types Summary ===== -->
+<h3>Preview Panel 支持的预览类型</h3>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 32px;">
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128196;</div>
+    <div style="font-weight:600;margin-bottom:4px;">Markdown</div>
+    <div style="font-size:13px;color:#86868b;">渲染 Markdown（支持本地图片、代码块高亮）</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128187;</div>
+    <div style="font-weight:600;margin-bottom:4px;">React Dev</div>
+    <div style="font-size:13px;color:#86868b;">iframe 加载 localhost dev server，HMR 自动刷新</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128190;</div>
+    <div style="font-weight:600;margin-bottom:4px;">Code (Monaco)</div>
+    <div style="font-size:13px;color:#86868b;">语法高亮编辑器，支持 30+ 语言</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128260;</div>
+    <div style="font-weight:600;margin-bottom:4px;">Diff (Monaco)</div>
+    <div style="font-size:13px;color:#86868b;">左右对比 Agent 修改前后的代码差异</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#127912;</div>
+    <div style="font-weight:600;margin-bottom:4px;">Image</div>
+    <div style="font-size:13px;color:#86868b;">单张/画廊预览，支持 AI 生成的图片</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128462;</div>
+    <div style="font-weight:600;margin-bottom:4px;">PDF</div>
+    <div style="font-size:13px;color:#86868b;">PDF.js 渲染，支持翻页和缩放</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#128202;</div>
+    <div style="font-weight:600;margin-bottom:4px;">CSV / JSON</div>
+    <div style="font-size:13px;color:#86868b;">CSV 表格视图 / JSON 可折叠树</div>
+  </div>
+  <div style="background:#fff;border:1px solid #d1d1d6;border-radius:10px;padding:16px;">
+    <div style="font-size:24px;margin-bottom:8px;">&#127760;</div>
+    <div style="font-weight:600;margin-bottom:4px;">HTML</div>
+    <div style="font-size:13px;color:#86868b;">webview 直接渲染 HTML 文件</div>
+  </div>
+</div>
+
+</body>
+</html>

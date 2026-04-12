@@ -1,0 +1,180 @@
+<h2>方案 D：混合架构（受 Claude Code 启发）</h2>
+<p class="subtitle">与方案 B 对比 — 哪个更适合 tiny-codex？</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">方案 B：每线程独立进程</div>
+    <div class="mockup-body">
+      <pre style="font-size:12px;line-height:1.6;color:#e2e8f0;margin:0;">
+┌────────────────────────────┐
+│   Renderer (React UI)      │
+└──────────┬─────────────────┘
+           │ IPC
+┌──────────▼─────────────────┐
+│   Main Process (Electron)  │
+│   ThreadManager + SQLite   │
+└──┬─────────┬─────────┬─────┘
+   │         │         │
+┌──▼───┐ ┌──▼───┐ ┌──▼───┐
+│Fork 1│ │Fork 2│ │Fork 3│
+│Agent │ │Agent │ │Agent │
+│Loop  │ │Loop  │ │Loop  │
+│+Tools│ │+Tools│ │+Tools│
+│~50MB │ │~50MB │ │~50MB │
+└──┬───┘ └──┬───┘ └──┬───┘
+   │spawn   │spawn   │spawn
+┌──▼───┐ ┌──▼───┐ ┌──▼───┐
+│bash  │ │bash  │ │bash  │
+└──────┘ └──────┘ └──────┘
+      </pre>
+      <div class="pros-cons" style="margin-top:16px;">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>完全崩溃隔离</li>
+            <li>概念简单（每线程=一个进程）</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>内存高：N 线程 × ~50MB = 很快几百MB</li>
+            <li>API Client 不共享，无法复用连接池</li>
+            <li>Prompt Cache 无法跨线程共享</li>
+            <li>IPC 序列化开销（每条消息都要 JSON 往返）</li>
+            <li>进程启动慢（fork + 初始化 Agent）</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">方案 D：单进程多线程 + 按需 spawn</div>
+    <div class="mockup-body">
+      <pre style="font-size:12px;line-height:1.6;color:#e2e8f0;margin:0;">
+┌────────────────────────────┐
+│   Renderer (React UI)      │
+└──────────┬─────────────────┘
+           │ IPC
+┌──────────▼─────────────────┐
+│   Main Process (Electron)  │
+│                            │
+│  ┌──────────────────────┐  │
+│  │ Shared Resources     │  │
+│  │ • API Client Pool    │  │
+│  │ • SQLite DB          │  │
+│  │ • Model Registry     │  │
+│  └──────────────────────┘  │
+│                            │
+│  ┌────┐ ┌────┐ ┌────┐     │
+│  │ T1 │ │ T2 │ │ T3 │     │
+│  │Loop│ │Loop│ │Loop│     │
+│  │~2MB│ │~2MB│ │~2MB│     │
+│  └─┬──┘ └─┬──┘ └─┬──┘     │
+│    │  AsyncLocalStorage    │
+│    │  上下文隔离            │
+└────┼───────┼───────┼───────┘
+     │spawn  │spawn  │spawn
+  ┌──▼──┐ ┌──▼──┐ ┌──▼──┐
+  │bash │ │bash │ │bash │
+  └─────┘ └─────┘ └─────┘
+      </pre>
+      <div class="pros-cons" style="margin-top:16px;">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>内存极低：每线程仅消息历史 ~2MB</li>
+            <li>API Client / 连接池共享</li>
+            <li>Prompt Cache 可跨线程复用</li>
+            <li>线程切换零开销（同一事件循环）</li>
+            <li>新线程即时启动</li>
+            <li>Claude Code 已验证此模式可行</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Agent Loop 里的 bug 可能影响所有线程</li>
+            <li>需要 AsyncLocalStorage 做上下文隔离</li>
+            <li>CPU 密集操作（如大文件 diff）需额外处理</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:32px;">为什么方案 D 更好？</h3>
+
+<div class="section">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="border-bottom:2px solid #334155;">
+        <th style="text-align:left;padding:8px 12px;color:#94a3b8;">对比维度</th>
+        <th style="text-align:center;padding:8px 12px;color:#94a3b8;">方案 B（多进程）</th>
+        <th style="text-align:center;padding:8px 12px;color:#94a3b8;">方案 D（单进程）</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:8px 12px;">10 个线程内存</td>
+        <td style="text-align:center;padding:8px 12px;color:#f87171;">~500MB</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">~80MB（共享+消息）</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:8px 12px;">新线程启动</td>
+        <td style="text-align:center;padding:8px 12px;color:#f87171;">~500ms（fork+init）</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">~1ms（new object）</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:8px 12px;">API 连接复用</td>
+        <td style="text-align:center;padding:8px 12px;color:#f87171;">不可能</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">天然共享</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:8px 12px;">Bash 崩溃隔离</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">完全隔离</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">完全隔离（spawn）</td>
+      </tr>
+      <tr style="border-bottom:1px solid #1e293b;">
+        <td style="padding:8px 12px;">Agent Loop 崩溃</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">仅影响单线程</td>
+        <td style="text-align:center;padding:8px 12px;color:#fbbf24;">需 try/catch 保护</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;">实现复杂度</td>
+        <td style="text-align:center;padding:8px 12px;color:#fbbf24;">中等（IPC 协议）</td>
+        <td style="text-align:center;padding:8px 12px;color:#4ade80;">低（直接函数调用）</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <h4>关键论点</h4>
+  <p style="color:#cbd5e1;line-height:1.8;">
+    Agent Loop 99% 的时间在<strong>等待 LLM API 返回</strong>（几秒到十几秒），这期间 CPU 完全空闲。
+    10 个线程同时跑，Node.js 事件循环毫无压力。<br><br>
+    真正危险的操作（bash 命令）无论哪种方案都是 <code>spawn()</code> 子进程，隔离程度一样。<br><br>
+    方案 B 的进程隔离解决的是一个<strong>不存在的问题</strong>（Agent Loop 的 CPU 竞争），
+    却引入了真实的代价（内存、IPC 复杂度、无法共享资源）。
+  </p>
+</div>
+
+<div class="options" style="margin-top:32px;">
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>保持方案 B — 每线程独立进程</h3>
+      <p>如果你更看重完全崩溃隔离，愿意接受资源开销</p>
+    </div>
+  </div>
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>切换到方案 D — 单进程 + AsyncLocalStorage 隔离</h3>
+      <p>Claude Code 验证过的模式，更轻量、更高效、实现更简单</p>
+    </div>
+  </div>
+</div>

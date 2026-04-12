@@ -1,0 +1,263 @@
+<h2>Agent 框架分层设计</h2>
+<p class="subtitle">参考 helixent 三层架构，适配 tiny-codex 多场景需求</p>
+
+<div class="section">
+  <h3>分层架构总览</h3>
+  <pre style="background:var(--bg-secondary);color:var(--text-primary);padding:20px;border-radius:12px;font-size:13px;line-height:1.7;overflow-x:auto;border:1px solid var(--border);">
+    依赖方向（严格单向，从上到下）
+
+    ┌─────────────────────────────────────────────────────────────┐
+    │                   App Layer (Electron)                       │
+    │        Renderer (React UI) ←IPC→ Main Process               │
+    │        线程管理 / 模型选择 / Monaco 编辑器 / 预览面板        │
+    └────────────────────────┬────────────────────────────────────┘
+                             │ 使用
+    ┌────────────────────────▼────────────────────────────────────┐
+    │                  Coding Layer (领域层)                       │
+    │     createCodingAgent() — 组装 Agent + 工具 + 中间件         │
+    │     8 个标准工具 + Skills 自定义工具 / Worktree 管理器       │
+    └────────────────────────┬────────────────────────────────────┘
+                             │ 使用
+    ┌────────────────────────▼────────────────────────────────────┐
+    │                  Agent Layer (核心层)                        │
+    │     Agent 类 — ReAct Loop (think → act → observe)           │
+    │     中间件系统（8 个生命周期钩子）                            │
+    │     Compaction 引擎（上下文压缩）                            │
+    └────────────────────────┬────────────────────────────────────┘
+                             │ 使用
+    ┌────────────────────────▼────────────────────────────────────┐
+    │                Foundation Layer (基础层)                     │
+    │     Model 抽象 / Message 类型 / FunctionTool / Provider 接口 │
+    └────────────────────────────────────────────────────────────┘
+                             ↑ 实现
+    ┌────────────────────────────────────────────────────────────┐
+    │              Community Layer (适配器层)                      │
+    │     OpenAIProvider (豆包/DeepSeek/Qwen/vLLM)               │
+    │     AnthropicProvider (Claude 原生 API)                     │
+    └────────────────────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<div class="section" style="margin-top:32px;">
+  <h3>与 helixent 的对比变化</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="border-bottom:2px solid var(--border);">
+        <th style="text-align:left;padding:8px 12px;color:var(--text-secondary);">模块</th>
+        <th style="text-align:center;padding:8px 12px;color:var(--text-secondary);">helixent</th>
+        <th style="text-align:center;padding:8px 12px;color:var(--text-secondary);">tiny-codex</th>
+        <th style="text-align:left;padding:8px 12px;color:var(--text-secondary);">变化原因</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">运行时</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">Bun</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">Node.js</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">Electron 原生支持</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">UI</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">Ink (终端 React)</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">React DOM</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">桌面 GUI 需要</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">Provider</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">仅 OpenAI 兼容</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">+ Anthropic 原生</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">Claude extended thinking</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">工具数</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">4 个</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">8 个标准 + Skills 自定义工具</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">补齐搜索和交互，支持扩展（如 image_gen）</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">上下文管理</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">纯内存</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">SQLite + Compaction</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">多线程持久化需要</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">代码编辑器</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">无（CLI 终端）</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">Monaco Editor</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">IDE 级编辑 / 高亮 / Diff</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">文件 API</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">Bun.file()</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">fs/promises</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">Node.js 标准库</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;">进程执行</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--text-secondary);">Bun.spawn()</td>
+        <td style="text-align:center;padding:8px 12px;color:var(--accent);font-weight:600;">child_process.spawn()</td>
+        <td style="padding:8px 12px;color:var(--text-secondary);">Node.js 标准库</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="section" style="margin-top:32px;">
+  <h3>各层职责与关键接口</h3>
+</div>
+
+<div class="mockup" style="margin-top:16px;">
+  <div class="mockup-header">Foundation Layer — 不依赖任何上层</div>
+  <div class="mockup-body" style="background:var(--bg-secondary);">
+    <pre style="font-size:13px;line-height:1.7;color:var(--text-primary);margin:0;">
+src/foundation/
+├── messages/
+│   └── types.ts          # 统一消息类型
+│       <strong>• TextContent</strong>       — 文本
+│       <strong>• ImageContent</strong>      — 图片 URL
+│       <strong>• ThinkingContent</strong>   — 推理过程（Anthropic extended thinking）
+│       <strong>• ToolUseContent</strong>    — 工具调用请求
+│       <strong>• ToolResultContent</strong> — 工具执行结果
+│       SystemMessage / UserMessage / AssistantMessage / ToolMessage
+│
+├── models/
+│   ├── model.ts           # Model 类 — 统一调用入口
+│   ├── provider.ts        # ModelProvider 接口
+│   └── context.ts         # ModelContext (prompt + messages + tools)
+│
+└── tools/
+    └── define-tool.ts     # defineTool() 工厂 — Zod schema → JSON Schema
+                           # 保持 helixent 的设计，类型安全
+    </pre>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:16px;">
+  <div class="mockup-header">Agent Layer — 依赖 Foundation</div>
+  <div class="mockup-body" style="background:var(--bg-secondary);">
+    <pre style="font-size:13px;line-height:1.7;color:var(--text-primary);margin:0;">
+src/agent/
+├── agent.ts               # Agent 类 — ReAct Loop 核心
+│   <strong>• stream()</strong> → AsyncGenerator&lt;AssistantMessage | ToolMessage&gt;
+│   <strong>• think()</strong>  → 调用 Model，获取响应
+│   <strong>• act()</strong>    → 并行执行工具（保持 helixent 的 Promise.race 模式）
+│   <strong>• abort()</strong>  → 中止当前执行
+│
+├── middleware.ts           # 8 个生命周期钩子（同 helixent）
+│   beforeAgentRun / afterAgentRun
+│   beforeAgentStep / afterAgentStep
+│   beforeModel / afterModel
+│   beforeToolUse / afterToolUse
+│
+├── compaction/
+│   ├── compactor.ts       # 上下文压缩引擎
+│   │   <strong>• shouldCompact()</strong>  → 判断是否超阈值
+│   │   <strong>• compact()</strong>        → 用 LLM 生成摘要，替换旧消息
+│   └── strategies.ts      # 压缩策略（full / micro）
+│
+└── skills/
+    ├── skill-reader.ts    # SKILL.md frontmatter 解析（同 helixent）
+    ├── skills-middleware.ts # 技能发现 + prompt 注入
+    └── skill-tools.ts     # Skills 自定义工具注册
+                           # Skills 可通过 defineTool() 注册额外工具
+                           # 如 image_gen Skill 注册 generate_image 工具
+    </pre>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:16px;">
+  <div class="mockup-header">Coding Layer — 依赖 Agent</div>
+  <div class="mockup-body" style="background:var(--bg-secondary);">
+    <pre style="font-size:13px;line-height:1.7;color:var(--text-primary);margin:0;">
+src/coding/
+├── agents/
+│   └── create-agent.ts    # createCodingAgent() 工厂
+│       组装 Model + 8 标准工具 + Skill 自定义工具
+│       + Skills 中间件 + Compaction 中间件
+│       加载项目根目录的 AGENTS.md 作为初始上下文
+│
+├── tools/                 # 8 个标准工具
+│   ├── <strong>bash.ts</strong>            # 执行 shell 命令 (child_process.spawn)
+│   ├── <strong>read-file.ts</strong>       # 读取文件 (fs.readFile)
+│   ├── <strong>write-file.ts</strong>      # 写入文件 (fs.writeFile)
+│   ├── <strong>str-replace.ts</strong>     # 字符串替换
+│   ├── <strong>glob.ts</strong>            # 文件模式搜索 (fast-glob)
+│   ├── <strong>grep.ts</strong>            # 内容搜索 (ripgrep 子进程)
+│   ├── <strong>list-dir.ts</strong>        # 目录浏览 (fs.readdir)
+│   └── <strong>ask-user.ts</strong>        # 向用户提问 (通过 IPC 弹出对话框)
+│
+└── worktree/
+    └── manager.ts         # Git Worktree 管理
+        create() → git worktree add
+        remove() → git worktree remove
+        list()   → git worktree list
+        merge()  → 合并回主分支
+    </pre>
+  </div>
+</div>
+
+<div class="mockup" style="margin-top:16px;">
+  <div class="mockup-header">Community Layer — 实现 Foundation 的 Provider 接口</div>
+  <div class="mockup-body" style="background:var(--bg-secondary);">
+    <pre style="font-size:13px;line-height:1.7;color:var(--text-primary);margin:0;">
+src/community/
+├── openai/
+│   ├── provider.ts        # OpenAIModelProvider
+│   │   使用 openai SDK
+│   │   兼容：豆包 / DeepSeek / Qwen / vLLM / OpenAI
+│   └── converter.ts       # 消息格式转换
+│       toOpenAI()   → 内部消息 → OpenAI 格式
+│       fromOpenAI() → OpenAI 响应 → 内部消息
+│       reasoning_content → ThinkingContent（豆包/DeepSeek）
+│
+└── anthropic/
+    ├── provider.ts        # AnthropicModelProvider
+    │   使用 @anthropic-ai/sdk
+    │   原生支持 extended thinking / content blocks
+    └── converter.ts       # 消息格式转换
+        toAnthropic()   → 内部消息 → Anthropic 格式
+        fromAnthropic() → Anthropic 响应 → 内部消息
+        天然对齐（内部格式参考 Anthropic 设计）
+    </pre>
+  </div>
+</div>
+
+<div class="section" style="margin-top:32px;">
+  <h3>数据流：一次完整的 Agent 交互</h3>
+  <pre style="background:var(--bg-secondary);color:var(--text-primary);padding:20px;border-radius:12px;font-size:13px;line-height:1.8;overflow-x:auto;border:1px solid var(--border);">
+用户在 Chat Panel 输入 "帮我给 Button 组件加一个 loading 状态"
+  │
+  ▼ IPC
+Main Process: ThreadManager 找到当前线程的 Agent 实例
+  │
+  ▼ agent.stream(userMessage)
+Agent Loop Step 1:
+  │ think() → Model.invoke() → OpenAIProvider / AnthropicProvider
+  │ ← AssistantMessage: [thinking: "需要先看看 Button 组件..."]
+  │                      [tool_use: read_file({path: "src/Button.tsx"})]
+  │
+  │ act() → readFileTool.invoke() → fs.readFile()
+  │ ← ToolMessage: [tool_result: "文件内容..."]
+  │
+  │ yield AssistantMessage → IPC → Renderer 渲染思考过程
+  │ yield ToolMessage      → IPC → Renderer 渲染文件内容
+  │
+Agent Loop Step 2:
+  │ think() → Model.invoke()
+  │ ← AssistantMessage: [text: "我来添加 loading 状态"]
+  │                      [tool_use: str_replace({...})]
+  │
+  │ act() → strReplaceTool.invoke()
+  │ ← ToolMessage: [tool_result: "替换完成"]
+  │
+  │ yield → Renderer 渲染 + Preview Panel 自动刷新 (HMR)
+  │
+Agent Loop Step 3:
+  │ think() → Model.invoke()
+  │ ← AssistantMessage: [text: "已完成，Button 现在支持 loading prop"]
+  │                      (无 tool_use → 循环结束)
+  │
+  ▼ afterAgentRun()
+ThreadManager: 持久化消息到 SQLite → 检查是否需要 Compaction
+  </pre>
+</div>

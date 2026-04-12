@@ -1,0 +1,135 @@
+<h2>tiny-codex 架构方案</h2>
+<p class="subtitle">基于需求：Electron + Node.js + React，参考 helixent 三层架构，支持 OpenAI 兼容 + Anthropic 双后端</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>单进程架构 — Agent 跑在 Electron 主进程</h3>
+      <p>Agent 框架直接运行在 Electron main process，通过 IPC 与 React 渲染进程通信。</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>架构最简单，无额外进程管理</li>
+            <li>IPC 通信延迟低</li>
+            <li>文件系统访问直接（Node.js fs）</li>
+            <li>打包部署简单</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Agent 执行 bash 命令时可能阻塞主进程</li>
+            <li>多线程并行受限</li>
+            <li>主进程崩溃 = 整个 App 崩溃</li>
+          </ul>
+        </div>
+      </div>
+      <pre style="background:#1a1a2e;color:#94a3b8;padding:12px;border-radius:8px;font-size:13px;margin-top:12px;overflow-x:auto;">
+┌─────────────────────────────────┐
+│     Renderer (React UI)         │
+│  Threads │ Chat │ Model Picker  │
+└──────────┬──────────────────────┘
+           │ IPC
+┌──────────▼──────────────────────┐
+│     Main Process (Electron)     │
+│  ┌───────────────────────────┐  │
+│  │    Agent Framework        │  │
+│  │  Foundation → Agent →     │  │
+│  │  Coding → Tools           │  │
+│  ├───────────────────────────┤  │
+│  │  ThreadManager + SQLite   │  │
+│  └───────────────────────────┘  │
+└─────────────────────────────────┘</pre>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>双进程架构 — Agent 跑在独立子进程</h3>
+      <p>Electron 主进程只做协调，Agent 框架运行在 fork 出的 Worker 子进程，每个线程一个 Worker。</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>Agent 崩溃不影响 App 主体</li>
+            <li>多线程天然并行（每线程一个进程）</li>
+            <li>bash 命令执行不阻塞 UI</li>
+            <li>可独立重启单个 Agent</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>进程间通信略复杂（需要序列化消息）</li>
+            <li>内存占用更高（每个 Worker ~30-50MB）</li>
+            <li>调试稍困难</li>
+          </ul>
+        </div>
+      </div>
+      <pre style="background:#1a1a2e;color:#94a3b8;padding:12px;border-radius:8px;font-size:13px;margin-top:12px;overflow-x:auto;">
+┌─────────────────────────────────┐
+│     Renderer (React UI)         │
+│  Threads │ Chat │ Model Picker  │
+└──────────┬──────────────────────┘
+           │ IPC
+┌──────────▼──────────────────────┐
+│     Main Process (Electron)     │
+│  ThreadManager + SQLite         │
+│  WorkerPool (fork/kill)         │
+└──┬──────────┬───────────────────┘
+   │ stdio    │ stdio
+┌──▼────┐  ┌──▼────┐
+│Worker1│  │Worker2│  ...per thread
+│ Agent │  │ Agent │
+│ Tools │  │ Tools │
+└───────┘  └───────┘</pre>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合架构 — 主进程 + Worker Thread</h3>
+      <p>Agent 框架跑在 Node.js Worker Threads（非子进程），共享内存但独立执行。折中方案。</p>
+      <div class="pros-cons">
+        <div class="pros">
+          <h4>Pros</h4>
+          <ul>
+            <li>比子进程更轻量（共享部分内存）</li>
+            <li>不阻塞主进程</li>
+            <li>通过 SharedArrayBuffer 可高效传数据</li>
+            <li>Electron 原生支持</li>
+          </ul>
+        </div>
+        <div class="cons">
+          <h4>Cons</h4>
+          <ul>
+            <li>Worker Threads 不能直接 spawn 子进程（bash 工具需绕行）</li>
+            <li>错误隔离不如独立进程</li>
+            <li>API 比 fork 更底层</li>
+          </ul>
+        </div>
+      </div>
+      <pre style="background:#1a1a2e;color:#94a3b8;padding:12px;border-radius:8px;font-size:13px;margin-top:12px;overflow-x:auto;">
+┌─────────────────────────────────┐
+│     Renderer (React UI)         │
+│  Threads │ Chat │ Model Picker  │
+└──────────┬──────────────────────┘
+           │ IPC
+┌──────────▼──────────────────────┐
+│     Main Process (Electron)     │
+│  ThreadManager + SQLite         │
+│  ┌─────────┐ ┌─────────┐       │
+│  │ Worker  │ │ Worker  │ ...   │
+│  │ Thread1 │ │ Thread2 │       │
+│  │ Agent   │ │ Agent   │       │
+│  └─────────┘ └─────────┘       │
+└─────────────────────────────────┘</pre>
+    </div>
+  </div>
+</div>
+
+<p style="margin-top:24px;color:#94a3b8;font-size:14px;"><strong>我的推荐：方案 B（双进程架构）</strong> — Agent 需要频繁 spawn bash 子进程，进程级隔离最干净。内存开销在桌面端可接受，且崩溃隔离对用户体验至关重要。</p>
