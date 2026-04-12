@@ -62,7 +62,6 @@ export function useThread() {
       const path = await api.openProject();
       if (path) {
         useUIStore.getState().setProjectPath(path);
-        console.log('Opened project:', path);
       }
     }
   }, []);
@@ -70,7 +69,6 @@ export function useThread() {
   const commitChanges = useCallback(async (message: string) => {
     if (api?.commit) {
       const result = await api.commit(message);
-      console.log('Commit result:', result);
       return result;
     }
   }, []);
