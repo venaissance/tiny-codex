@@ -1,73 +1,147 @@
-# TinyCodex
+<p align="center">
+  <img src="assets/icon.png" width="128" height="128" alt="TinyCodex Logo" />
+</p>
 
-[English](README.md) | [中文](#)
+<h1 align="center">TinyCodex</h1>
 
-轻量级 Electron AI 编程助手。打开本地项目，让 LLM Agent 帮你读写和执行代码——支持实时流式预览。
+<p align="center">
+  <strong>轻量级 Electron AI 编程助手，支持实时流式预览</strong>
+</p>
+
+<p align="center">
+  <a href="#功能特性">功能</a> &middot;
+  <a href="#演示">演示</a> &middot;
+  <a href="#快速开始">快速开始</a> &middot;
+  <a href="#架构">架构</a> &middot;
+  <a href="README.md">English</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/license/venaissance/tiny-codex" alt="License" />
+  <img src="https://img.shields.io/github/v/release/venaissance/tiny-codex" alt="Release" />
+  <img src="https://img.shields.io/badge/tests-220%20passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/electron-41-blue" alt="Electron" />
+</p>
+
+---
+
+打开本地项目，与 LLM Agent 对话，让它帮你读写和执行代码。Agent 写文件时，右侧面板实时渲染 — Markdown、HTML、代码等。
+
+## 演示
+
+<p align="center">
+  <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex — Markdown 流式预览" />
+  <br />
+  <em>Agent 写博客时实时渲染 Markdown 预览</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/tiny-codex-html.png" width="800" alt="TinyCodex — HTML 预览 + 深色主题" />
+  <br />
+  <em>HTML 实时预览，含进度追踪和深色主题</em>
+</p>
+
+https://github.com/user-attachments/assets/tiny-codex-demo.mp4
 
 ## 功能特性
 
-- **Agent 驱动编辑** — ReAct 循环 + 8 个内置工具（bash、读写文件、str_replace、glob、grep、list_dir、ask_user）
-- **多模型支持** — OpenAI 兼容协议（MiniMax、GLM、豆包/ARK、OpenAI），按 provider 控制流式开关
-- **实时流式输出** — 逐 token 渲染（rAF 批量合并），写文件时右侧面板实时预览内容
-- **思考过程可视化** — 可展开的 reasoning 卡片，实时显示 LLM 推理过程
-- **富预览面板** — Monaco 代码编辑器、Streamdown Markdown、Diff 视图、图片/PDF/CSV/JSON/HTML 预览
-- **进度追踪** — 侧边栏实时显示 Agent 步骤（thinking → tool call → reflecting → done）
-- **Skills 扩展** — 通过 Markdown 文件定义自定义工具，扩展 Agent 能力
-- **Git Worktree** — 隔离分支执行模式
-- **轨迹记录** — 完整 Agent 步骤历史，方便调试
+**Agent**
+- ReAct 循环 + 8 个内置工具 — bash、读写文件、str_replace、glob、grep、list_dir、ask_user
+- Skills 扩展 — 通过 Markdown 文件定义自定义工具
+- 轨迹记录 — 完整步骤历史，方便调试
+
+**流式输出**
+- 逐 token 聊天输出，rAF 批量渲染
+- 实时文件预览 — Agent 写文件时，预览面板同步显示内容
+- 可展开的思考卡片 — 实时查看 LLM 推理过程
+- 进度侧边栏 — thinking → tool call → reflecting → done
+
+**预览**
+- Markdown（Streamdown + Shiki 语法高亮）
+- HTML（沙箱 iframe）
+- 代码（Monaco Editor + Diff 视图）
+- 图片、PDF、CSV、JSON
+
+**模型提供商**
+
+| 提供商 | 流式输出 | 备注 |
+|--------|---------|------|
+| MiniMax | 支持 | 自动启用 `reasoning_split=true` |
+| GLM (智谱) | 不支持 | 非流式回退 |
+| 豆包/ARK | 支持 | 字节跳动火山引擎 |
+| OpenAI | 支持 | 任何 OpenAI 兼容端点 |
 
 ## 快速开始
 
 ```bash
-# 安装依赖
 pnpm install
-
-# 复制并配置 API Key
-cp .env.example .env
-
-# 启动开发模式
+cp .env.example .env   # 填入你的 API Key
 pnpm run dev
 ```
 
-### 支持的模型提供商
-
-| 提供商 | 环境变量 | 流式输出 | 备注 |
-|--------|---------|---------|------|
-| MiniMax | `MINIMAX_API_KEY` | 支持 | 自动启用 `reasoning_split=true` |
-| GLM (智谱) | `GLM_API_KEY` | 不支持 | 非流式回退 |
-| 豆包/ARK | `ARK_API_KEY` | 支持 | 字节跳动火山引擎 |
-| OpenAI | `OPENAI_API_KEY` | 支持 | 原生 OpenAI |
-
 ## 架构
 
-```
-Renderer (React)  ──IPC──  Main Process (Electron)
-     │                          │
-     ├── Zustand stores         ├── ThreadManager
-     ├── useAgent hook          │   └── Agent.stream()
-     ├── Streamdown/Monaco      │       ├── think() → Model.invoke()
-     └── file-writing events    │       └── act()  → Tool.invoke()
-                                └── SQLite (线程/消息持久化)
+```mermaid
+graph TB
+    subgraph Renderer["渲染进程 (React + Zustand)"]
+        useAgent["useAgent hook"]
+        Chat["聊天面板<br/><small>Streamdown</small>"]
+        Preview["预览面板<br/><small>Monaco / Markdown / HTML</small>"]
+        Sidebar["侧边栏<br/><small>进度 + 文件</small>"]
+        
+        useAgent -->|text_delta| Chat
+        useAgent -->|tool_use_delta| Preview
+        useAgent -->|state change| Sidebar
+    end
+
+    subgraph Main["主进程 (Electron)"]
+        TM["ThreadManager"]
+        Agent["Agent<br/><small>ReAct 循环</small>"]
+        DB["SQLite<br/><small>线程 + 消息</small>"]
+        
+        TM --> Agent
+        TM --> DB
+    end
+
+    subgraph Agent_Internals["Agent 内部"]
+        Think["think()<br/><small>Model.invoke()</small>"]
+        Act["act()<br/><small>Tool.invoke()</small>"]
+        MW["中间件<br/><small>8 个生命周期 hook</small>"]
+        
+        Agent --> MW --> Think
+        MW --> Act
+    end
+
+    subgraph Providers["Provider (OpenAI 兼容)"]
+        MiniMax["MiniMax<br/><small>流式 + reasoning</small>"]
+        GLM["GLM<br/><small>非流式</small>"]
+        ARK["豆包/ARK"]
+        OAI["OpenAI"]
+    end
+
+    subgraph Tools["8 个内置工具"]
+        bash & read_file & write_file & str_replace
+        glob & grep & list_dir & ask_user
+    end
+
+    Renderer <-->|IPC| Main
+    Think --> Providers
+    Act --> Tools
+
+    style Renderer fill:#e8f4fd,stroke:#4a90d9
+    style Main fill:#f0f7e8,stroke:#6ab04c
+    style Providers fill:#fef3e2,stroke:#f0932b
+    style Tools fill:#f5e6ff,stroke:#9b59b6
 ```
 
 **四层架构，严格自上而下依赖：**
 
 | 层 | 职责 |
 |----|------|
-| Foundation | Model/Provider 接口、消息类型、`defineTool()` |
-| Agent | ReAct 循环、中间件链（8 个 hook）、上下文压缩 |
-| Coding | 8 个工具实现、`createCodingAgent()` 工厂 |
-| App | Electron 窗口、IPC 处理、React UI、预览面板 |
-
-### 流式渲染管线
-
-```
-Provider SSE → onStream 回调 → IPC (AGENT_STREAM_DELTA) → useAgent hook
-  text_delta      → rAF 批量合并 → appendStreamingText → 聊天区自动滚动
-  thinking_delta  → appendStreamingThinking → 可展开的思考卡片
-  tool_use_start  → setAgentState('tool_calling') → 状态指示器更新
-  tool_use_delta  → 从 JSON 提取 content → file-writing 事件 → 实时预览
-```
+| **Foundation** | Model/Provider 接口、消息类型、`defineTool()` |
+| **Agent** | ReAct 循环、中间件链（8 个 hook）、上下文压缩 |
+| **Coding** | 工具实现、`createCodingAgent()` 工厂 |
+| **App** | Electron 窗口、IPC、React UI、预览面板 |
 
 ## 项目结构
 
@@ -78,57 +152,30 @@ src/
 ├── coding/         # 8 个标准工具、Agent 工厂、Worktree 管理
 ├── community/      # OpenAI + Mock Provider、共享流式类型
 ├── main/           # Electron 主进程、IPC、SQLite、窗口
-├── renderer/       # React UI、Zustand 状态管理、Streamdown 渲染
+├── renderer/       # React UI、Zustand 状态管理、组件
 └── shared/         # IPC 通道常量
 ```
 
 ## 测试
 
 ```bash
-# 单元 + 集成 + 组件测试（220 个）
-pnpm test
-
-# Mock LLM 的 E2E 测试（~10 秒，无需 API Key）
-npx playwright test tests/e2e/smoke.test.ts
-
-# 流式预览 E2E（验证无闪烁）
-npx playwright test tests/e2e/scenarios/streaming-preview.test.ts
-
-# 真实 API 测试（需要 .env 配置）
-RUN_LIVE_TESTS=1 pnpm test -- tests/integration/live-api.test.ts
+pnpm test                # 220 个 单元/组件/集成 测试
+npx playwright test      # E2E（Mock LLM，无需 API Key）
 ```
-
-### 测试覆盖
 
 | 类别 | 数量 | 范围 |
 |------|------|------|
-| 单元测试 | 120+ | Agent 循环、工具、Provider、Store、流式逻辑 |
-| 组件测试 | 55+ | MessageHistory、AgentProcess、Sidebar、Preview、InputBox |
-| 集成测试 | 14 | ThreadManager、Agent-Tools、Skills、真实 API |
-| E2E | 5 个场景 | Smoke、流式预览、完整工作流 |
+| 单元测试 | 120+ | Agent、工具、Provider、Store、流式逻辑 |
+| 组件测试 | 55+ | AgentProcess、MessageHistory、Sidebar、Preview、InputBox |
+| 集成测试 | 14 | ThreadManager、Agent-Tools、Skills |
+| E2E | 5 | Smoke、流式预览、完整工作流 |
 
-## 技术栈
-
-| 类别 | 技术 |
-|------|------|
-| 运行时 | Electron 41, Node.js |
-| UI | React 19, Zustand 5, Streamdown 2, Monaco Editor |
-| 样式 | Tailwind CSS v4, Shiki（语法高亮） |
-| 构建 | Vite, TypeScript |
-| 测试 | Vitest, Playwright, Testing Library |
-| 数据库 | SQLite (sql.js) |
-
-## 构建与打包
+## 构建
 
 ```bash
-# 生产构建
-pnpm run build
-
-# macOS 打包（目录模式）
-pnpm run pack
-
-# 完整发布构建
-pnpm run release
+pnpm run build     # 生产构建
+pnpm run pack      # macOS .app（目录模式）
+pnpm run release   # macOS .dmg
 ```
 
 ## 许可证
