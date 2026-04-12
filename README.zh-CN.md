@@ -29,12 +29,12 @@
 
 ## 演示
 
+https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
+
 <p align="center">
-  <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">
-    <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex 演示 — 点击观看视频" />
-  </a>
+  <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex — Markdown 流式预览" />
   <br />
-  <em>实时 Markdown 流式预览 — <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">点击观看演示视频</a></em>
+  <em>Agent 写博客时实时渲染 Markdown 预览</em>
 </p>
 
 <p align="center">

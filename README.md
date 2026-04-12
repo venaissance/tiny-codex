@@ -29,12 +29,12 @@ Open a local project, chat with an LLM agent that reads, writes, and executes co
 
 ## Demo
 
+https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
+
 <p align="center">
-  <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">
-    <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex Demo — Click to watch video" />
-  </a>
+  <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex — Markdown streaming preview" />
   <br />
-  <em>Real-time markdown streaming preview — <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">click to watch demo video</a></em>
+  <em>Real-time markdown preview while agent writes a blog post</em>
 </p>
 
 <p align="center">
