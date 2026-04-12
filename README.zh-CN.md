@@ -30,9 +30,11 @@
 ## 演示
 
 <p align="center">
-  <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex — Markdown 流式预览" />
+  <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">
+    <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex 演示 — 点击观看视频" />
+  </a>
   <br />
-  <em>Agent 写博客时实时渲染 Markdown 预览</em>
+  <em>实时 Markdown 流式预览 — <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">点击观看演示视频</a></em>
 </p>
 
 <p align="center">
@@ -40,8 +42,6 @@
   <br />
   <em>HTML 实时预览，含进度追踪和深色主题</em>
 </p>
-
-https://github.com/user-attachments/assets/tiny-codex-demo.mp4
 
 ## 功能特性
 

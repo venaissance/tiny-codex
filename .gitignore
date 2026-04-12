@@ -28,3 +28,4 @@ docs/private/
 .idea/
 .vscode/
 *.code-workspace
+docs/assets/*.mp4

@@ -30,9 +30,11 @@ Open a local project, chat with an LLM agent that reads, writes, and executes co
 ## Demo
 
 <p align="center">
-  <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex — Markdown streaming preview" />
+  <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">
+    <img src="docs/assets/tiny-codex-markdown.png" width="800" alt="TinyCodex Demo — Click to watch video" />
+  </a>
   <br />
-  <em>Real-time markdown preview while agent writes a blog post</em>
+  <em>Real-time markdown streaming preview — <a href="https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/tiny-codex.mp4">click to watch demo video</a></em>
 </p>
 
 <p align="center">
@@ -40,8 +42,6 @@ Open a local project, chat with an LLM agent that reads, writes, and executes co
   <br />
   <em>HTML live preview with progress tracking and dark theme</em>
 </p>
-
-https://github.com/user-attachments/assets/tiny-codex-demo.mp4
 
 ## Features
 
