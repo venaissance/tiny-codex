@@ -10,7 +10,12 @@ export const IPC = {
   AGENT_STREAM_END: 'agent:streamEnd',
   AGENT_STREAM_ERROR: 'agent:streamError',
   AGENT_STATE_CHANGE: 'agent:stateChange',
+  AGENT_PLAN_UPDATE: 'agent:planUpdate',
   FILE_OPEN_PROJECT: 'file:openProject',
   FILE_COMMIT: 'file:commit',
+  FILE_CREATE: 'file:createFile',
+  FILE_CREATE_DIR: 'file:createDir',
+  FILE_DELETE: 'file:deleteFile',
+  FILE_RENAME: 'file:renameFile',
   GIT_DIFF_STATS: 'git:diffStats',
 } as const;

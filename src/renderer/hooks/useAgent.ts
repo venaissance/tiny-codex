@@ -9,6 +9,7 @@ export function useAgent() {
     useThreadStore.getState().setStreaming(true);
     useThreadStore.getState().resetStreamingText();
     useThreadStore.getState().resetStreamingThinking();
+    useThreadStore.getState().setPlanItems([]);
     useThreadStore.getState().setAgentState('thinking', 1, null);
     useThreadStore.getState().appendMessage({ role: 'user', content: [{ type: 'text', text }] });
 
@@ -221,6 +222,14 @@ export function useAgent() {
           event.step,
           event.toolName ?? null,
         );
+      });
+      if (unsub) cleanups.push(unsub);
+    }
+
+    // Agent plan update (from PlannerMiddleware)
+    if (api.onPlanUpdate) {
+      const unsub = api.onPlanUpdate((data: any) => {
+        useThreadStore.getState().setPlanItems(data.items);
       });
       if (unsub) cleanups.push(unsub);
     }

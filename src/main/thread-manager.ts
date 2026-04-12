@@ -12,6 +12,7 @@ export class ThreadManager {
   private agents: Map<string, Agent> = new Map();
   public onStreamDelta?: (threadId: string, event: any) => void;
   public onStateChange?: (event: AgentStateEvent) => void;
+  public onPlanUpdate?: (threadId: string, items: any[]) => void;
 
   constructor(
     private db: Database,
@@ -108,6 +109,7 @@ export class ThreadManager {
       cwd: thread.project_path,
       threadId,
       onStateChange: (event) => this.onStateChange?.(event),
+      onPlanUpdate: (items) => this.onPlanUpdate?.(threadId, items),
       historyMessages,
     });
 

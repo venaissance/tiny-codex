@@ -40,6 +40,14 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
     }
   };
 
+  // Agent plan update forwarding
+  threadManager.onPlanUpdate = (threadId, items) => {
+    const win = getWindow();
+    if (win) {
+      win.webContents.send(IPC.AGENT_PLAN_UPDATE, { threadId, items });
+    }
+  };
+
   ipcMain.handle(IPC.AGENT_SEND_MESSAGE, async (_event, threadId: string, text: string) => {
     const win = getWindow();
     if (!win) return;
@@ -100,6 +108,30 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
     } catch {
       return [];
     }
+  });
+
+  ipcMain.handle(IPC.FILE_CREATE, async (_event, filePath: string) => {
+    const fs = await import('fs/promises');
+    await fs.writeFile(filePath, '', 'utf-8');
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC.FILE_CREATE_DIR, async (_event, dirPath: string) => {
+    const fs = await import('fs/promises');
+    await fs.mkdir(dirPath, { recursive: true });
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC.FILE_DELETE, async (_event, filePath: string) => {
+    const fs = await import('fs/promises');
+    await fs.rm(filePath, { recursive: true, force: true });
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC.FILE_RENAME, async (_event, oldPath: string, newPath: string) => {
+    const fs = await import('fs/promises');
+    await fs.rename(oldPath, newPath);
+    return { success: true };
   });
 
   ipcMain.handle(IPC.GIT_DIFF_STATS, async () => {

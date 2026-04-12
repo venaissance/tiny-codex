@@ -4,6 +4,7 @@ import { Agent } from '../../agent/agent';
 import type { Model } from '../../foundation/models/model';
 import type { AgentStateEvent } from '../../agent/trajectory';
 import { createSkillsMiddleware } from '../../agent/skills';
+import { PlannerMiddleware } from '../../agent/middlewares/planner';
 import { standardTools } from '../tools';
 import { createUserMessage } from '../../foundation/messages';
 import type { NonSystemMessage } from '../../foundation/messages/types';
@@ -15,6 +16,7 @@ export interface CodingAgentOptions {
   maxSteps?: number;
   threadId?: string;
   onStateChange?: (event: AgentStateEvent) => void;
+  onPlanUpdate?: (items: any[]) => void;
   historyMessages?: NonSystemMessage[];
 }
 
@@ -43,7 +45,10 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<Ag
     prompt,
     messages,
     tools: standardTools,
-    middlewares: [createSkillsMiddleware(skillsDirs)],
+    middlewares: [
+      createSkillsMiddleware(skillsDirs),
+      ...(options.onPlanUpdate ? [new PlannerMiddleware({ onPlanUpdate: options.onPlanUpdate })] : []),
+    ],
     maxSteps: options.maxSteps ?? 100,
     threadId: options.threadId,
     onStateChange: options.onStateChange,

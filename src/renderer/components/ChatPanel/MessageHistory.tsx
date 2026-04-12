@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { AgentProcess, AgentStateIndicator, type ProcessStep } from './AgentProcess';
 import { CopyButton } from './CopyButton';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { SuggestionCards, extractSuggestions } from './SuggestionCards';
 
 interface Message {
   role: string;
@@ -127,7 +128,12 @@ function groupMessages(messages: Message[]): GroupedItem[] {
   return groups;
 }
 
-export function MessageHistory({ messages, streamingText, isStreaming: isStreamingProp = false }: { messages: Message[]; streamingText?: string; isStreaming?: boolean }) {
+export function MessageHistory({ messages, streamingText, isStreaming: isStreamingProp = false, onSuggestionSelect }: {
+  messages: Message[];
+  streamingText?: string;
+  isStreaming?: boolean;
+  onSuggestionSelect?: (text: string) => void;
+}) {
   const grouped = groupMessages(messages);
   const isStreaming = isStreamingProp;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -173,6 +179,31 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
           </div>
         </div>
       )}
+      {/* Suggestion cards — show after agent finishes */}
+      {!isStreaming && onSuggestionSelect && <SuggestionCardsFromMessages messages={messages} onSelect={onSuggestionSelect} />}
     </div>
   );
+}
+
+/** Extract suggestions from the last assistant message and tool history */
+function SuggestionCardsFromMessages({ messages, onSelect }: { messages: Message[]; onSelect: (text: string) => void }) {
+  const suggestions = useMemo(() => {
+    if (messages.length === 0) return [];
+    // Find last assistant text
+    let lastText = '';
+    const toolNames: string[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === 'assistant') {
+        for (const c of msg.content) {
+          if (c.type === 'text' && c.text) lastText = c.text;
+          if (c.type === 'tool_use') toolNames.push(c.name);
+        }
+        if (lastText) break;
+      }
+    }
+    return extractSuggestions(lastText, toolNames);
+  }, [messages]);
+
+  return <SuggestionCards suggestions={suggestions} onSelect={onSelect} />;
 }

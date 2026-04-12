@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on(IPC.AGENT_STATE_CHANGE, handler);
     return () => ipcRenderer.removeListener(IPC.AGENT_STATE_CHANGE, handler);
   },
+  onPlanUpdate: (cb: (data: any) => void) => {
+    const handler = (_: any, data: any) => cb(data);
+    ipcRenderer.on(IPC.AGENT_PLAN_UPDATE, handler);
+    return () => ipcRenderer.removeListener(IPC.AGENT_PLAN_UPDATE, handler);
+  },
 
   onSetProjectPath: (cb: (path: string) => void) => {
     const handler = (_: any, path: string) => cb(path);
@@ -43,6 +48,10 @@ contextBridge.exposeInMainWorld('api', {
   },
   readFile: (filePath: string) => ipcRenderer.invoke('file:readFile', filePath),
   listFiles: (dirPath: string) => ipcRenderer.invoke('file:listFiles', dirPath),
+  createFile: (filePath: string) => ipcRenderer.invoke(IPC.FILE_CREATE, filePath),
+  createDir: (dirPath: string) => ipcRenderer.invoke(IPC.FILE_CREATE_DIR, dirPath),
+  deleteFile: (filePath: string) => ipcRenderer.invoke(IPC.FILE_DELETE, filePath),
+  renameFile: (oldPath: string, newPath: string) => ipcRenderer.invoke(IPC.FILE_RENAME, oldPath, newPath),
   openProject: () => ipcRenderer.invoke(IPC.FILE_OPEN_PROJECT),
   commit: (message: string) => ipcRenderer.invoke(IPC.FILE_COMMIT, message),
   getDiffStats: () => ipcRenderer.invoke(IPC.GIT_DIFF_STATS),

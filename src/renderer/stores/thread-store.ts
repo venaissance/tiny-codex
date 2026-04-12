@@ -27,6 +27,7 @@ interface ThreadState {
   agentState: AgentStepState;
   agentStep: number;
   agentToolName: string | null;
+  planItems: Array<{ id: number; task: string; status: 'pending' | 'running' | 'done' }>;
   addThread: (thread: Thread) => void;
   removeThread: (id: string) => void;
   setActiveThread: (id: string | null) => void;
@@ -38,6 +39,7 @@ interface ThreadState {
   resetStreamingText: () => void;
   appendStreamingThinking: (delta: string) => void;
   resetStreamingThinking: () => void;
+  setPlanItems: (items: Array<{ id: number; task: string; status: 'pending' | 'running' | 'done' }>) => void;
   setAgentState: (state: AgentStepState, step?: number, toolName?: string | null) => void;
 }
 
@@ -51,6 +53,7 @@ export const useThreadStore = create<ThreadState>((set) => ({
   agentState: 'idle',
   agentStep: 0,
   agentToolName: null,
+  planItems: [],
   addThread: (thread) => set((s) => ({ threads: [...s.threads, thread] })),
   removeThread: (id) => set((s) => ({
     threads: s.threads.filter((t) => t.id !== id),
@@ -65,6 +68,7 @@ export const useThreadStore = create<ThreadState>((set) => ({
   resetStreamingText: () => set({ streamingText: '' }),
   appendStreamingThinking: (delta) => set((s) => ({ streamingThinking: s.streamingThinking + delta })),
   resetStreamingThinking: () => set({ streamingThinking: '' }),
+  setPlanItems: (planItems) => set({ planItems }),
   setAgentState: (agentState, step, toolName) => set({
     agentState,
     ...(step !== undefined ? { agentStep: step } : {}),

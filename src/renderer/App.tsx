@@ -21,7 +21,7 @@ const SKILLS = [
 const api = (window as any).api;
 
 export function App() {
-  const { threads, activeThreadId, messages, isStreaming, streamingText, agentState, agentStep, agentToolName } = useThreadStore();
+  const { threads, activeThreadId, messages, isStreaming, streamingText, agentState, agentStep, agentToolName, planItems } = useThreadStore();
   const { previewVisible, previewFile, projectPath, currentModel, mode, theme, togglePreview, setPreviewFile, setCurrentModel, setMode, setProjectPath, toggleTheme } = useUIStore();
   const { sendMessage, abortAgent } = useAgent();
   const { createThread, selectThread, deleteThread, openProject, commitChanges } = useThread();
@@ -197,12 +197,27 @@ export function App() {
       return steps;
     }
 
-    // Add all completed tool steps
+    // Prefer plan items from PlannerMiddleware when available
+    if (planItems.length > 0) {
+      for (const item of planItems) {
+        steps.push({ label: item.task, status: item.status });
+      }
+      // Add live indicator if still streaming
+      if (isStreaming && !steps.some(s => s.status === 'running')) {
+        const firstPending = steps.find(s => s.status === 'pending');
+        if (firstPending) firstPending.status = 'running';
+      }
+      if (!isStreaming && hasStreamedRef.current) {
+        steps.push({ label: 'Done', status: 'done' });
+      }
+      return steps;
+    }
+
+    // Fallback: tool-based progress tracking
     for (const s of completedStepsRef.current) {
       steps.push({ label: `Step ${s.step} \u00B7 ${s.label}`, status: 'done' });
     }
 
-    // Add current live step
     if (isStreaming) {
       if (agentState === 'thinking') {
         steps.push({ label: `Step ${agentStep} \u00B7 Thinking...`, status: 'running' });
@@ -212,12 +227,11 @@ export function App() {
         steps.push({ label: `Step ${agentStep} \u00B7 Reflecting...`, status: 'running' });
       }
     } else if (hasStreamedRef.current) {
-      // Streaming ended — show Done
       steps.push({ label: 'Done', status: 'done' });
     }
 
     return steps;
-  }, [messages, isStreaming, agentState, agentStep, agentToolName]);
+  }, [messages, isStreaming, agentState, agentStep, agentToolName, planItems]);
 
   const contextItems = useMemo(() => {
     const toolCounts = new Map<string, number>();
@@ -280,7 +294,7 @@ export function App() {
           fileRefreshKey={fileRefreshKey}
         />
         {activeThread ? (
-          <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText} isStreaming={isStreaming}>
+          <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText} isStreaming={isStreaming} onSuggestionSelect={(text) => activeThreadId && sendMessage(activeThreadId, text)}>
             <InputBox
               onSend={handleSend}
               onAbort={() => activeThreadId && abortAgent(activeThreadId)}
