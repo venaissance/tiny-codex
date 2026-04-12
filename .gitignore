@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Secrets
+.env
+*.db
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage/
+
+# E2E test sandbox
+e2e_test_folder/
+
+docs/private/
+
+# Superpowers (brainstorming workspace)
+.superpowers/
+
+# OS / IDE
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace

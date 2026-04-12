@@ -1,0 +1,10 @@
+appId: com.tiny-codex.app
+productName: tiny-codex
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+mac:
+  target: dmg
+  icon: null

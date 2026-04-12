@@ -1,0 +1,16 @@
+export const IPC = {
+  THREAD_CREATE: 'thread:create',
+  THREAD_LIST: 'thread:list',
+  THREAD_DELETE: 'thread:delete',
+  THREAD_GET_MESSAGES: 'thread:getMessages',
+  AGENT_SEND_MESSAGE: 'agent:sendMessage',
+  AGENT_ABORT: 'agent:abort',
+  AGENT_STREAM_CHUNK: 'agent:streamChunk',
+  AGENT_STREAM_DELTA: 'agent:streamDelta',
+  AGENT_STREAM_END: 'agent:streamEnd',
+  AGENT_STREAM_ERROR: 'agent:streamError',
+  AGENT_STATE_CHANGE: 'agent:stateChange',
+  FILE_OPEN_PROJECT: 'file:openProject',
+  FILE_COMMIT: 'file:commit',
+  GIT_DIFF_STATS: 'git:diffStats',
+} as const;
