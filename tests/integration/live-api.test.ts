@@ -6,14 +6,13 @@
  *
  * 默认跳过。设置 RUN_LIVE_TESTS=1 + 对应 API Key 环境变量才会执行。
  *
- * MiniMax 推荐使用 Anthropic 兼容模式：
- *   Base URL: https://api.minimaxi.com/anthropic
- *   Model: MiniMax-M2.7
+ * 所有 Provider 统一使用 OpenAI 兼容模式：
+ *   MiniMax: https://api.minimaxi.com/v1 + reasoning_split=true
+ *   GLM: https://open.bigmodel.cn/api/paas/v4
  */
 import { describe, it, expect } from 'vitest';
 import { Model } from '@/foundation/models/model';
 import { OpenAIModelProvider } from '@/community/openai/provider';
-import { AnthropicModelProvider } from '@/community/anthropic/provider';
 import type { ModelProvider } from '@/foundation/models/provider';
 import { Agent } from '@/agent/agent';
 import { defineTool } from '@/foundation/tools';
@@ -30,14 +29,14 @@ const hasAnyKey = MINIMAX_KEY || GLM_KEY || ARK_KEY;
 describe.skipIf(!RUN_LIVE || !hasAnyKey)('Live API Integration', () => {
   function getProvider(): { provider: ModelProvider; modelName: string; mode: string } {
     if (MINIMAX_KEY) {
-      // MiniMax 推荐 Anthropic 兼容模式
       return {
-        provider: new AnthropicModelProvider({
+        provider: new OpenAIModelProvider({
+          baseURL: process.env.MINIMAX_OPENAI_BASE_URL || 'https://api.minimaxi.com/v1',
           apiKey: MINIMAX_KEY,
-          baseURL: process.env.MINIMAX_ANTHROPIC_BASE_URL || 'https://api.minimaxi.com/anthropic',
+          defaultOptions: { reasoning_split: true },
         }),
         modelName: process.env.MINIMAX_MODEL || 'MiniMax-M2.7',
-        mode: 'anthropic-compat',
+        mode: 'openai-compat',
       };
     }
     if (GLM_KEY) {

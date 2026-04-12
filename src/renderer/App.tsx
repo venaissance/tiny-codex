@@ -28,10 +28,13 @@ export function App() {
   const [previewContent, setPreviewContent] = useState('');
   const [fileRefreshKey, setFileRefreshKey] = useState(0);
   const [previewAnimated, setPreviewAnimated] = useState(false);
+  // Guard: when true, live streaming preview is active — skip disk reads that would overwrite it
+  const isLivePreviewingRef = useRef(false);
 
   // Refresh file list when streaming ends OR when a tool writes a file
   useEffect(() => {
     if (!isStreaming) {
+      isLivePreviewingRef.current = false; // Streaming ended — safe to read from disk
       setFileRefreshKey((k) => k + 1);
     }
   }, [isStreaming]);
@@ -42,13 +45,50 @@ export function App() {
     return () => window.removeEventListener('file-changed', handler);
   }, []);
 
-  // Auto-preview file when agent writes/edits it
+  // Live preview while agent is generating file content (before write_file completes)
+  // Throttled with rAF to prevent flickering on high-frequency deltas (GLM sends many small chunks)
+  useEffect(() => {
+    let pendingContent = '';
+    let pendingPath = '';
+    let rafId: number | null = null;
+
+    const flush = () => {
+      rafId = null;
+      if (pendingContent) {
+        isLivePreviewingRef.current = true; // Protect from disk-read overwrite
+        if (pendingPath && useUIStore.getState().previewFile !== pendingPath) {
+          setPreviewFile(pendingPath);
+        }
+        setPreviewContent(pendingContent);
+        setPreviewAnimated(false);
+        if (!useUIStore.getState().previewVisible) togglePreview();
+      }
+    };
+
+    const handler = (e: Event) => {
+      const { content, path } = (e as CustomEvent).detail as { content: string; path: string };
+      if (content) {
+        pendingContent = content;
+        if (path) pendingPath = path;
+        if (!rafId) rafId = requestAnimationFrame(flush);
+      }
+    };
+
+    window.addEventListener('file-writing', handler);
+    return () => {
+      window.removeEventListener('file-writing', handler);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [togglePreview, setPreviewFile]);
+
+  // Auto-preview file when agent finishes writing it (tool result confirmed — file exists on disk)
   useEffect(() => {
     const handler = (e: Event) => {
       const filePath = (e as CustomEvent).detail as string;
       if (filePath) {
+        isLivePreviewingRef.current = false; // File is on disk now, safe to read
         setPreviewFile(filePath);
-        setPreviewAnimated(true);
+        setPreviewAnimated(false);
         setFileRefreshKey((k) => k + 1);
         if (!useUIStore.getState().previewVisible) togglePreview();
       }
@@ -84,10 +124,13 @@ export function App() {
   }, [togglePreview, createThread, openProject]);
 
   // Read file content when previewFile changes OR when streaming ends (file may have been modified)
+  // GUARD: skip disk reads during live streaming preview to avoid flicker
   useEffect(() => {
     if (!previewFile) { setPreviewContent(''); return; }
+    if (isLivePreviewingRef.current) return; // Don't overwrite live streaming preview
     if (api?.readFile) {
       api.readFile(previewFile).then((content: string) => {
+        if (isLivePreviewingRef.current) return; // Re-check after async
         if (content === 'Error: Cannot read file') {
           // File was likely renamed/deleted — clear selection
           setPreviewFile(null);
@@ -96,6 +139,7 @@ export function App() {
           setPreviewContent(content || '');
         }
       }).catch(() => {
+        if (isLivePreviewingRef.current) return;
         setPreviewFile(null);
         setPreviewContent('');
       });

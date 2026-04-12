@@ -8,6 +8,7 @@ export function useAgent() {
   const sendMessage = useCallback(async (threadId: string, text: string) => {
     useThreadStore.getState().setStreaming(true);
     useThreadStore.getState().resetStreamingText();
+    useThreadStore.getState().resetStreamingThinking();
     useThreadStore.getState().setAgentState('thinking', 1, null);
     useThreadStore.getState().appendMessage({ role: 'user', content: [{ type: 'text', text }] });
 
@@ -42,6 +43,12 @@ export function useAgent() {
     let pendingText = '';
     let rafId: number | null = null;
 
+    // Track current tool_use for live preview of file content
+    let currentToolName = '';
+    let toolJsonAccumulator = '';
+    let extractedContent = '';
+    let contentFieldStarted = false;
+
     // Stream delta — text appears token by token
     // Batch stream deltas with requestAnimationFrame for smooth rendering
     if (api.onStreamDelta) {
@@ -61,6 +68,65 @@ export function useAgent() {
             rafId = requestAnimationFrame(flushPending);
           }
         }
+
+        // Thinking delta — show reasoning in real-time in the indicator card
+        if (event.type === 'thinking_delta') {
+          useThreadStore.getState().appendStreamingThinking(event.thinking);
+        }
+
+        // Track which tool is being called — update store immediately for UI indicator
+        if (event.type === 'tool_use_start') {
+          currentToolName = event.name;
+          toolJsonAccumulator = '';
+          extractedContent = '';
+          contentFieldStarted = false;
+          // Show tool name in indicator right away (before agent loop transitions)
+          useThreadStore.getState().setAgentState('tool_calling', undefined, event.name);
+        }
+
+        // Live extract write_file content from JSON delta fragments
+        if (event.type === 'tool_use_delta' && (currentToolName === 'write_file' || currentToolName === 'str_replace')) {
+          toolJsonAccumulator += event.partialJson;
+
+          // Strategy: detect when "content": " appears, then accumulate everything after
+          if (!contentFieldStarted) {
+            const match = toolJsonAccumulator.match(/"content"\s*:\s*"/);
+            if (match) {
+              contentFieldStarted = true;
+              const idx = toolJsonAccumulator.indexOf(match[0]);
+              extractedContent = toolJsonAccumulator.slice(idx + match[0].length);
+            }
+          } else {
+            extractedContent += event.partialJson;
+          }
+
+          if (contentFieldStarted) {
+            // Unescape JSON string (handle \n, \", \\)
+            let preview = extractedContent;
+            // Remove trailing JSON structure: incomplete escape, closing "}, or closing "
+            if (preview.endsWith('\\')) preview = preview.slice(0, -1);
+            if (preview.endsWith('"}')) preview = preview.slice(0, -2);
+            else if (preview.endsWith('"')) preview = preview.slice(0, -1);
+            try {
+              preview = JSON.parse('"' + preview + '"');
+            } catch {
+              preview = preview.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+            }
+            // Extract file path from accumulated JSON for preview tab detection
+            const pathMatch = toolJsonAccumulator.match(/"path"\s*:\s*"([^"]+)"/);
+            window.dispatchEvent(new CustomEvent('file-writing', {
+              detail: { content: preview, path: pathMatch?.[1] ?? '' },
+            }));
+          }
+        }
+
+        // Reset tool tracking on block stop
+        if (event.type === 'content_block_stop') {
+          currentToolName = '';
+          toolJsonAccumulator = '';
+          extractedContent = '';
+          contentFieldStarted = false;
+        }
       });
       if (unsub) cleanups.push(unsub);
       // Cleanup rAF on unmount
@@ -69,6 +135,13 @@ export function useAgent() {
 
     // Stream chunk — complete message (assistant or tool)
     // Add all messages immediately; streamingText is just a live preview
+    //
+    // CRITICAL: file-written must only fire AFTER tool execution (when file exists on disk).
+    // Dispatching from assistant message (tool_use intent) causes flicker because the file
+    // hasn't been written yet — readFile fails → preview clears → tool writes → preview reopens.
+    // Fix: track pending paths by toolUseId, dispatch when matching tool result arrives.
+    const pendingWrites = new Map<string, string>(); // toolUseId → filePath
+
     if (api.onStreamChunk) {
       const unsub = api.onStreamChunk((chunk: any) => {
         const msg = chunk.message;
@@ -77,32 +150,34 @@ export function useAgent() {
           messages: [...s.messages, msg],
         }));
         if (msg?.role === 'assistant') {
-          // When agent writes/edits a file, auto-preview it
+          // Track pending file writes — DON'T dispatch file-written yet (file not on disk)
           for (const c of msg.content ?? []) {
             if (c.type === 'tool_use' && (c.name === 'write_file' || c.name === 'str_replace')) {
               const filePath = c.input?.path;
-              if (filePath) {
-                window.dispatchEvent(new CustomEvent('file-written', { detail: filePath }));
-              }
+              if (filePath) pendingWrites.set(c.id, filePath);
             }
-            // bash mv/cp → preview the destination file
             if (c.type === 'tool_use' && c.name === 'bash') {
               const cmd = (c.input?.command ?? '').trim();
-              // Match: mv "source" "dest" OR mv source dest (last non-flag arg)
               const mvMatch = cmd.match(/\bmv\s+(?:-\S+\s+)*(?:"[^"]+"|'[^']+'|\S+)\s+("[^"]+"|'[^']+'|(\S+))\s*$/);
               if (mvMatch) {
                 const dest = (mvMatch[1] || mvMatch[2]).replace(/^["']|["']$/g, '');
-                window.dispatchEvent(new CustomEvent('file-written', { detail: dest }));
+                pendingWrites.set(c.id, dest);
               }
             }
           }
         }
         if (msg?.role === 'tool') {
           window.dispatchEvent(new CustomEvent('file-changed'));
-          // Check tool results for file paths (write_file result, bash mv result)
           for (const c of msg.content ?? []) {
+            // Match tool result to pending write by toolUseId — file now exists on disk
+            const toolUseId = c.toolUseId ?? c.tool_use_id;
+            if (toolUseId && pendingWrites.has(toolUseId)) {
+              const filePath = pendingWrites.get(toolUseId)!;
+              window.dispatchEvent(new CustomEvent('file-written', { detail: filePath }));
+              pendingWrites.delete(toolUseId);
+            }
+            // Fallback: parse tool result text for "File written: /path"
             const text = typeof c.content === 'string' ? c.content : '';
-            // "File written: /path/to/file"
             const writtenMatch = text.match(/File written:\s*(\S+)/);
             if (writtenMatch) {
               window.dispatchEvent(new CustomEvent('file-written', { detail: writtenMatch[1] }));
@@ -118,7 +193,7 @@ export function useAgent() {
         // Cancel any pending rAF flush
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         pendingText = '';
-        useThreadStore.setState({ streamingText: '', isStreaming: false, agentState: 'idle' as const, agentToolName: null });
+        useThreadStore.setState({ streamingText: '', streamingThinking: '', isStreaming: false, agentState: 'idle' as const, agentToolName: null });
       });
       if (unsub) cleanups.push(unsub);
     }

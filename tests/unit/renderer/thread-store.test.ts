@@ -58,4 +58,32 @@ describe('ThreadStore', () => {
     store.setAgentState('idle');
     expect(useThreadStore.getState().agentState).toBe('idle');
   });
+
+  it('appends streaming thinking text', () => {
+    const store = useThreadStore.getState();
+    store.appendStreamingThinking('Let me');
+    store.appendStreamingThinking(' think...');
+    expect(useThreadStore.getState().streamingThinking).toBe('Let me think...');
+  });
+
+  it('resets streaming thinking text', () => {
+    const store = useThreadStore.getState();
+    store.appendStreamingThinking('some thinking');
+    store.resetStreamingThinking();
+    expect(useThreadStore.getState().streamingThinking).toBe('');
+  });
+
+  it('appends streaming text', () => {
+    const store = useThreadStore.getState();
+    store.appendStreamingText('Hello');
+    store.appendStreamingText(' world');
+    expect(useThreadStore.getState().streamingText).toBe('Hello world');
+  });
+
+  it('resets streaming text', () => {
+    const store = useThreadStore.getState();
+    store.appendStreamingText('some text');
+    store.resetStreamingText();
+    expect(useThreadStore.getState().streamingText).toBe('');
+  });
 });

@@ -130,15 +130,23 @@ function groupMessages(messages: Message[]): GroupedItem[] {
 export function MessageHistory({ messages, streamingText, isStreaming: isStreamingProp = false }: { messages: Message[]; streamingText?: string; isStreaming?: boolean }) {
   const grouped = groupMessages(messages);
   const isStreaming = isStreamingProp;
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages or streaming text changes
+  // During streaming: instant jump (smooth animation can't keep up with rapid updates)
+  // After streaming: smooth scroll for new messages
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length, streamingText]);
+    const el = containerRef.current;
+    if (!el) return;
+    if (isStreaming) {
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages.length, streamingText, isStreaming]);
 
   return (
-    <div className="chat-messages">
+    <div className="chat-messages" ref={containerRef}>
       {grouped.map((group, i) => (
         <div key={i} style={{ marginBottom: 16 }}>
           {group.type === 'user' && (
@@ -165,7 +173,6 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
           </div>
         </div>
       )}
-      <div ref={bottomRef} />
     </div>
   );
 }

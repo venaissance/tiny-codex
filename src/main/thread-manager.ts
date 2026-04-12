@@ -3,7 +3,7 @@ import { Agent } from '../agent/agent';
 import { Model } from '../foundation/models/model';
 import { createCodingAgent } from '../coding/agents/create-agent';
 import type { ModelProvider } from '../foundation/models/provider';
-import { AnthropicModelProvider, type StreamCallback } from '../community/anthropic/provider';
+import type { StreamCallback } from '../community/stream-types';
 import { createUserMessage } from '../foundation/messages';
 import type { AssistantMessage, ToolMessage } from '../foundation/messages/types';
 import type { AgentStateEvent, Trajectory } from '../agent/trajectory';
@@ -46,13 +46,12 @@ export class ThreadManager {
     const agent = await this.getOrCreateAgent(threadId);
 
     // Set up stream callback on provider before each call
+    // Uses duck-typing: any provider with onStream property gets the callback
     const thread = this.db.getThread(threadId);
     if (thread) {
-      const provider = this.resolveProvider(thread.model_id);
-      if (provider instanceof AnthropicModelProvider) {
-        provider.onStream = (event) => {
-          this.onStreamDelta?.(threadId, event);
-        };
+      const provider = this.resolveProvider(thread.model_id) as any;
+      if ('onStream' in provider && (provider.supportsStreaming ?? true)) {
+        provider.onStream = (event: any) => this.onStreamDelta?.(threadId, event);
       }
     }
 
@@ -117,14 +116,32 @@ export class ThreadManager {
   }
 
   private resolveProvider(modelId: string): ModelProvider {
-    if (modelId.startsWith('claude') || modelId.startsWith('MiniMax')) {
-      const p = this.providers.get('anthropic');
-      if (p) return p;
+    // Named routing: model prefix → provider key
+    const routes: Array<[string, string[]]> = [
+      ['MiniMax', ['minimax']],
+      ['glm', ['glm']],
+      ['ep-', ['ark']],
+    ];
+
+    for (const [prefix, keys] of routes) {
+      if (modelId.startsWith(prefix)) {
+        for (const key of keys) {
+          const p = this.providers.get(key);
+          if (p) return p;
+        }
+      }
     }
-    const p = this.providers.get('openai');
-    if (p) return p;
-    const fallback = this.providers.get('anthropic');
+
+    // E2E mock — single 'mock' key handles everything
+    const mock = this.providers.get('mock');
+    if (mock) return mock;
+
+    // Generic fallback: openai → first available
+    const fallback = this.providers.get('openai');
     if (fallback) return fallback;
+
+    const first = this.providers.values().next();
+    if (!first.done) return first.value;
     throw new Error(`No provider configured for model: ${modelId}`);
   }
 }

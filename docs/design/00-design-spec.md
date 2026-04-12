@@ -22,7 +22,7 @@ tiny-codex 是一个基于 Electron 的轻量级 Agent IDE 桌面应用，类似
 |------|------|---------|
 | 项目名 | **tiny-codex** | — |
 | 技术栈 | Node.js + React + Electron | — |
-| 模型后端 | OpenAI 兼容 + Anthropic 原生（双 Provider） | [04-agent-framework](04-design-agent-framework.md) |
+| 模型后端 | OpenAI 兼容（MiniMax / GLM / ARK / OpenAI） | [04-agent-framework](04-design-agent-framework.md) |
 | 执行模式 | Local + Worktree | — |
 | 进程架构 | 单进程多线程 + 按需 spawn（方案 D） | [02-plan-d-vs-b](02-architecture-plan-d-vs-b.md) |
 | 工具集 | 标准 8 工具 + Skills 可注册自定义工具 | [04-agent-framework](04-design-agent-framework.md) |
@@ -74,7 +74,7 @@ Agent Layer (核心层)        — ReAct Loop + 中间件 + Compaction
     ↓
 Foundation Layer (基础层)   — Model / Message / FunctionTool / Provider 接口
     ↑
-Community Layer (适配器层)  — OpenAI Provider + Anthropic Provider
+Community Layer (适配器层)  — OpenAI Provider (MiniMax / GLM / ARK / OpenAI)
 ```
 
 ### 关键模块
@@ -91,7 +91,7 @@ Community Layer (适配器层)  — OpenAI Provider + Anthropic Provider
 | `Coding/tools` | bash / read_file / write_file / str_replace / glob / grep / list_dir / ask_user |
 | `Coding/worktree` | Git Worktree 管理（create / remove / list / merge） |
 | `Community/openai` | OpenAI 兼容 Provider（豆包/DeepSeek/Qwen/vLLM） |
-| `Community/anthropic` | Anthropic 原生 Provider（Claude extended thinking） |
+| `Community/stream-types` | 共享流式事件类型（StreamCallback / StreamEvent） |
 
 详见 [04-design-agent-framework.md](04-design-agent-framework.md)
 
@@ -212,7 +212,7 @@ tiny-codex/
 │   │
 │   └── community/                 # Provider 适配层
 │       ├── openai/
-│       └── anthropic/
+│       └── stream-types.ts
 │
 ├── skills/                        # 内置 Skills
 │   ├── image-gen/

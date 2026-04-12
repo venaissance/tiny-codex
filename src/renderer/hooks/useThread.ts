@@ -23,6 +23,9 @@ export function useThread() {
     useThreadStore.getState().addThread(thread);
     useThreadStore.getState().setActiveThread(id);
     useThreadStore.getState().setMessages([]);
+    useThreadStore.getState().resetStreamingText();
+    useThreadStore.getState().setStreaming(false);
+    useThreadStore.getState().setAgentState('idle');
 
     // Sync to main process DB (must succeed before agent can use the thread)
     if (api?.createThread) {
@@ -40,6 +43,9 @@ export function useThread() {
 
   const selectThread = useCallback(async (id: string) => {
     useThreadStore.getState().setActiveThread(id);
+    useThreadStore.getState().resetStreamingText();
+    useThreadStore.getState().setStreaming(false);
+    useThreadStore.getState().setAgentState('idle');
     if (api?.getMessages) {
       try {
         const messages = await api.getMessages(id);

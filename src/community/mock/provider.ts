@@ -1,13 +1,20 @@
 /**
  * MockModelProvider for E2E testing.
  * Returns scripted responses without calling any external API.
+ * Supports streaming simulation via onStream callback.
  * Enabled via E2E_MOCK=1 environment variable.
  */
 import type { ModelProvider } from '../../foundation/models/provider';
 import type { AssistantMessage, Message } from '../../foundation/messages/types';
 import type { FunctionTool } from '../../foundation/tools/define-tool';
+import type { StreamCallback } from '../stream-types';
+
+const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export class MockModelProvider implements ModelProvider {
+  public onStream?: StreamCallback;
+  public supportsStreaming = true;
+
   async invoke(params: {
     model: string;
     messages: Message[];
@@ -26,14 +33,48 @@ export class MockModelProvider implements ModelProvider {
 
     // First call with tool-worthy prompt: use a tool
     if (!hasToolResult && params.tools?.length && this.shouldUseTool(userText)) {
-      return this.buildToolCall(userText, params.tools);
+      const response = this.buildToolCall(userText, params.tools);
+      await this.simulateStreaming(response);
+      return response;
     }
 
-    // Return text response (no delay needed for mock)
-    return {
+    // Return text response
+    const response: AssistantMessage = {
       role: 'assistant',
       content: [{ type: 'text', text: `[Mock] Response to: "${userText.slice(0, 80)}"` }],
     };
+    await this.simulateStreaming(response);
+    return response;
+  }
+
+  /**
+   * Simulate streaming by emitting delta events before returning the complete message.
+   * This mirrors real provider behavior: deltas flow via onStream, then invoke() returns.
+   */
+  private async simulateStreaming(response: AssistantMessage): Promise<void> {
+    if (!this.onStream) return;
+
+    for (const block of response.content) {
+      if (block.type === 'text') {
+        // Emit text in small chunks (5 chars at a time, 5ms apart)
+        const text = block.text;
+        for (let i = 0; i < text.length; i += 5) {
+          this.onStream({ type: 'text_delta', text: text.slice(i, i + 5) });
+          await delay(5);
+        }
+      }
+
+      if (block.type === 'tool_use') {
+        // Emit tool_use_start then argument chunks
+        this.onStream({ type: 'tool_use_start', id: block.id, name: block.name });
+        const json = JSON.stringify(block.input);
+        for (let i = 0; i < json.length; i += 20) {
+          this.onStream({ type: 'tool_use_delta', partialJson: json.slice(i, i + 20) });
+          await delay(5);
+        }
+        this.onStream({ type: 'content_block_stop' });
+      }
+    }
   }
 
   private shouldUseTool(text: string): boolean {
@@ -49,7 +90,6 @@ export class MockModelProvider implements ModelProvider {
     if (lower.includes('bash') || lower.includes('run') || lower.includes('echo')) {
       const bashTool = tools.find(t => t.name === 'bash');
       if (bashTool) {
-        // Extract command from quotes if possible
         const cmdMatch = text.match(/"([^"]+)"/);
         return {
           role: 'assistant',
@@ -63,7 +103,7 @@ export class MockModelProvider implements ModelProvider {
       }
     }
 
-    if (lower.includes('read') || lower.includes('file')) {
+    if (lower.includes('read') && !lower.includes('write')) {
       const readTool = tools.find(t => t.name === 'read_file');
       if (readTool) {
         const pathMatch = text.match(/(?:read|file)\s+(\S+)/i);
@@ -82,7 +122,8 @@ export class MockModelProvider implements ModelProvider {
     if (lower.includes('write') || lower.includes('create')) {
       const writeTool = tools.find(t => t.name === 'write_file');
       if (writeTool) {
-        const pathMatch = text.match(/(?:create|write)\s+(\S+)/i);
+        // Extract path: "Write file /path/to/file" or "Create /path/to/file"
+        const pathMatch = text.match(/(?:write\s+file|create)\s+(\S+)/i);
         return {
           role: 'assistant',
           content: [{
@@ -91,7 +132,7 @@ export class MockModelProvider implements ModelProvider {
             name: 'write_file',
             input: {
               path: pathMatch?.[1] ?? '/tmp/mock-test.txt',
-              content: 'Mock file content',
+              content: '# Mock File\n\nThis is mock content written by the test agent.',
             },
           }],
         };

@@ -50,6 +50,15 @@ export function MarkdownView({ content, animated = false }: { content: string; b
   const scrollRef = useRef<HTMLDivElement>(null);
   const displayed = useStreamReveal(content, animated, scrollRef);
 
+  // Auto-scroll preview to bottom when content grows (live streaming preview)
+  const prevLenRef = useRef(0);
+  useEffect(() => {
+    if (!animated && content.length > prevLenRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+    prevLenRef.current = content.length;
+  }, [content, animated]);
+
   return (
     <div ref={scrollRef} style={{ padding: 20, height: '100%', overflow: 'auto' }}>
       <Streamdown

@@ -26,7 +26,6 @@ import { Database } from './db';
 import { ThreadManager } from './thread-manager';
 import { registerIpcHandlers } from './ipc/handlers';
 import { OpenAIModelProvider } from '../community/openai/provider';
-import { AnthropicModelProvider } from '../community/anthropic/provider';
 import { MockModelProvider } from '../community/mock/provider';
 import type { ModelProvider } from '../foundation/models/provider';
 
@@ -44,35 +43,32 @@ app.whenReady().then(async () => {
   // E2E Mock mode — instant responses, no API calls
   if (process.env.E2E_MOCK === '1') {
     const mock = new MockModelProvider();
-    providers.set('anthropic', mock);
-    providers.set('openai', mock);
+    providers.set('mock', mock);
     console.log('[tiny-codex] Using MOCK provider (E2E_MOCK=1)');
   } else {
 
-  // MiniMax — Anthropic 兼容模式（推荐）
+  // MiniMax — OpenAI 兼容模式 + reasoning_split
   if (process.env.MINIMAX_API_KEY) {
-    providers.set('anthropic', new AnthropicModelProvider({
-      apiKey: process.env.MINIMAX_API_KEY,
-      baseURL: process.env.MINIMAX_ANTHROPIC_BASE_URL || 'https://api.minimaxi.com/anthropic',
-    }));
-    // Also register as openai fallback via OpenAI compat
-    providers.set('openai', new OpenAIModelProvider({
+    providers.set('minimax', new OpenAIModelProvider({
       baseURL: process.env.MINIMAX_OPENAI_BASE_URL || 'https://api.minimaxi.com/v1',
       apiKey: process.env.MINIMAX_API_KEY,
+      defaultOptions: { reasoning_split: true },
+      supportsStreaming: true,
     }));
   }
 
-  // GLM — OpenAI 兼容模式
+  // GLM — OpenAI 兼容模式 (streaming disabled: returns 404 with stream:true)
   if (process.env.GLM_API_KEY) {
-    providers.set('openai', new OpenAIModelProvider({
-      baseURL: process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4/',
+    providers.set('glm', new OpenAIModelProvider({
+      baseURL: process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4',
       apiKey: process.env.GLM_API_KEY,
+      supportsStreaming: false,
     }));
   }
 
   // Doubao/ARK — OpenAI 兼容模式
   if (process.env.ARK_API_KEY) {
-    providers.set('openai', new OpenAIModelProvider({
+    providers.set('ark', new OpenAIModelProvider({
       baseURL: process.env.ARK_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3',
       apiKey: process.env.ARK_API_KEY,
     }));
@@ -83,13 +79,6 @@ app.whenReady().then(async () => {
     providers.set('openai', new OpenAIModelProvider({
       baseURL: process.env.OPENAI_BASE_URL,
       apiKey: process.env.OPENAI_API_KEY,
-    }));
-  }
-
-  // Native Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    providers.set('anthropic', new AnthropicModelProvider({
-      apiKey: process.env.ANTHROPIC_API_KEY,
     }));
   }
 

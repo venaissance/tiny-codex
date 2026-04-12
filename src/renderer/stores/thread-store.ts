@@ -23,6 +23,7 @@ interface ThreadState {
   messages: ThreadMessage[];
   isStreaming: boolean;
   streamingText: string;
+  streamingThinking: string;
   agentState: AgentStepState;
   agentStep: number;
   agentToolName: string | null;
@@ -35,6 +36,8 @@ interface ThreadState {
   setStreaming: (streaming: boolean) => void;
   appendStreamingText: (delta: string) => void;
   resetStreamingText: () => void;
+  appendStreamingThinking: (delta: string) => void;
+  resetStreamingThinking: () => void;
   setAgentState: (state: AgentStepState, step?: number, toolName?: string | null) => void;
 }
 
@@ -44,6 +47,7 @@ export const useThreadStore = create<ThreadState>((set) => ({
   messages: [],
   isStreaming: false,
   streamingText: '',
+  streamingThinking: '',
   agentState: 'idle',
   agentStep: 0,
   agentToolName: null,
@@ -59,6 +63,8 @@ export const useThreadStore = create<ThreadState>((set) => ({
   setStreaming: (isStreaming) => set({ isStreaming }),
   appendStreamingText: (delta) => set((s) => ({ streamingText: s.streamingText + delta })),
   resetStreamingText: () => set({ streamingText: '' }),
+  appendStreamingThinking: (delta) => set((s) => ({ streamingThinking: s.streamingThinking + delta })),
+  resetStreamingThinking: () => set({ streamingThinking: '' }),
   setAgentState: (agentState, step, toolName) => set({
     agentState,
     ...(step !== undefined ? { agentStep: step } : {}),

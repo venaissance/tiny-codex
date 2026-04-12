@@ -119,7 +119,8 @@ export function InputBox({ onSend, onAbort, isStreaming, skills, models, current
     }
 
     // Enter = submit, Shift+Enter = newline
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Skip if IME is composing (Chinese/Japanese/Korean input)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       doSubmit();
     }
