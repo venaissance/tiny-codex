@@ -95,6 +95,44 @@ describe('styles.css structural integrity', () => {
   it('Tailwind v4 import is present', () => {
     expect(css).toContain('@import "tailwindcss"');
   });
+
+  it('@source inline must NOT contain square brackets (breaks Tailwind parser)', () => {
+    const inlineMatches = css.match(/@source inline\("([^"]+)"\)/g) ?? [];
+    for (const match of inlineMatches) {
+      expect(match, '@source inline with brackets will break all CSS').not.toMatch(/\[/);
+    }
+  });
+
+  it('Shiki highlighting: hand-written CSS for --sdm-c color variable', () => {
+    expect(css).toContain('color: var(--sdm-c');
+  });
+
+  it('Shiki highlighting: hand-written CSS for --sdm-tbg background variable', () => {
+    expect(css).toContain('background-color: var(--sdm-tbg');
+  });
+
+  it('Shiki highlighting: dark mode uses --shiki-dark for color', () => {
+    expect(css).toContain('--shiki-dark');
+    expect(css).toMatch(/data-theme.*dark.*shiki-dark/s);
+  });
+
+  it('Shiki line numbers: counter-reset and counter-increment present', () => {
+    expect(css).toContain('counter-reset: line');
+    expect(css).toContain('counter-increment: line');
+    expect(css).toContain('content: counter(line)');
+  });
+
+  it('titlebar has position: relative for centered project name', () => {
+    const titlebarBlock = extractBlock(css, '.titlebar {');
+    expect(titlebarBlock).toContain('position: relative');
+  });
+
+  it('titlebar-project is absolutely centered', () => {
+    const projectBlock = extractBlock(css, '.titlebar-project {');
+    expect(projectBlock).toContain('position: absolute');
+    expect(projectBlock).toContain('left: 50%');
+    expect(projectBlock).toContain('translateX(-50%)');
+  });
 });
 
 /** Extract a CSS block starting from a selector */

@@ -21,10 +21,11 @@ function detectTab(file: string | null): Tab {
   return 'code';
 }
 
-export function PreviewPanel({ file, content, originalContent }: {
+export function PreviewPanel({ file, content, originalContent, animated = false }: {
   file: string | null;
   content: string;
   originalContent?: string;
+  animated?: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const autoTab = useMemo(() => detectTab(file), [file]);
@@ -88,7 +89,7 @@ export function PreviewPanel({ file, content, originalContent }: {
         {activeTab === 'diff' && file && originalContent && (
           <DiffView file={file} original={originalContent} modified={content} />
         )}
-        {activeTab === 'markdown' && <MarkdownView content={content} basePath={file ? file.replace(/\/[^/]+$/, '') : ''} />}
+        {activeTab === 'markdown' && <MarkdownView content={content} basePath={file ? file.replace(/\/[^/]+$/, '') : ''} animated={animated} />}
         {activeTab === 'image' && file && <ImageView src={file} />}
         {activeTab === 'pdf' && file && <PdfView file={file} />}
         {activeTab === 'csv' && <CsvJsonView type="csv" content={content} />}
@@ -100,7 +101,7 @@ export function PreviewPanel({ file, content, originalContent }: {
             (() => {
               const ext = file.split('.').pop()?.toLowerCase() ?? '';
               if (ext === 'html' || ext === 'htm') return <HtmlView file={file} />;
-              if (ext === 'md') return <MarkdownView content={content} basePath={file.replace(/\/[^/]+$/, '')} />;
+              if (ext === 'md') return <MarkdownView content={content} basePath={file.replace(/\/[^/]+$/, '')} animated={animated} />;
               if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) return <ImageView src={file} />;
               if (ext === 'pdf') return <PdfView file={file} />;
               if (ext === 'csv') return <CsvJsonView type="csv" content={content} />;

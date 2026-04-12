@@ -10,9 +10,7 @@ export function Titlebar({ projectName, diffStats, onOpen, onCommit, onToggleThe
 }) {
   return (
     <div className="titlebar">
-      <span className="titlebar-title">
-        tiny-codex{projectName ? ` — ${projectName}` : ''}
-      </span>
+      <span className="titlebar-project">{projectName ?? ''}</span>
       <div className="titlebar-actions">
         {onToggleTheme && (
           <button onClick={onToggleTheme} className="titlebar-theme-btn">

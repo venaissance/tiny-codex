@@ -27,6 +27,7 @@ export function App() {
   const { createThread, selectThread, deleteThread, openProject, commitChanges } = useThread();
   const [previewContent, setPreviewContent] = useState('');
   const [fileRefreshKey, setFileRefreshKey] = useState(0);
+  const [previewAnimated, setPreviewAnimated] = useState(false);
 
   // Refresh file list when streaming ends OR when a tool writes a file
   useEffect(() => {
@@ -40,6 +41,21 @@ export function App() {
     window.addEventListener('file-changed', handler);
     return () => window.removeEventListener('file-changed', handler);
   }, []);
+
+  // Auto-preview file when agent writes/edits it
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const filePath = (e as CustomEvent).detail as string;
+      if (filePath) {
+        setPreviewFile(filePath);
+        setPreviewAnimated(true);
+        setFileRefreshKey((k) => k + 1);
+        if (!useUIStore.getState().previewVisible) togglePreview();
+      }
+    };
+    window.addEventListener('file-written', handler);
+    return () => window.removeEventListener('file-written', handler);
+  }, [setPreviewFile, togglePreview]);
 
   // Apply theme
   useEffect(() => {
@@ -72,14 +88,23 @@ export function App() {
     if (!previewFile) { setPreviewContent(''); return; }
     if (api?.readFile) {
       api.readFile(previewFile).then((content: string) => {
-        setPreviewContent(content || '');
-      }).catch(() => setPreviewContent('Error reading file'));
+        if (content === 'Error: Cannot read file') {
+          // File was likely renamed/deleted — clear selection
+          setPreviewFile(null);
+          setPreviewContent('');
+        } else {
+          setPreviewContent(content || '');
+        }
+      }).catch(() => {
+        setPreviewFile(null);
+        setPreviewContent('');
+      });
     }
-  }, [previewFile, fileRefreshKey]);
+  }, [previewFile, fileRefreshKey, setPreviewFile]);
 
   const handleSelectFile = useCallback((filePath: string) => {
     setPreviewFile(filePath);
-    // Auto-show preview panel if hidden
+    setPreviewAnimated(false); // manual selection = no animation
     if (!useUIStore.getState().previewVisible) {
       togglePreview();
     }
@@ -211,7 +236,7 @@ export function App() {
           fileRefreshKey={fileRefreshKey}
         />
         {activeThread ? (
-          <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText}>
+          <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText} isStreaming={isStreaming}>
             <InputBox
               onSend={handleSend}
               onAbort={() => activeThreadId && abortAgent(activeThreadId)}
@@ -242,7 +267,7 @@ export function App() {
           </div>
         )}
         {previewVisible && (
-          <PreviewPanel file={previewFile} content={previewContent} />
+          <PreviewPanel file={previewFile} content={previewContent} animated={previewAnimated} />
         )}
       </div>
     </div>

@@ -41,6 +41,9 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
+      shiki:
+        specifier: ^3.23.0
+        version: 3.23.0
       sql.js:
         specifier: ^1.14.1
         version: 1.14.1

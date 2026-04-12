@@ -15,6 +15,7 @@ export interface CodingAgentOptions {
   maxSteps?: number;
   threadId?: string;
   onStateChange?: (event: AgentStateEvent) => void;
+  historyMessages?: NonSystemMessage[];
 }
 
 export async function createCodingAgent(options: CodingAgentOptions): Promise<Agent> {
@@ -28,6 +29,11 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<Ag
     messages.push(createUserMessage('[AGENTS.md automatically loaded]\n' + content));
   } catch {
     // No AGENTS.md
+  }
+
+  // Restore conversation history from DB
+  if (options.historyMessages?.length) {
+    messages.push(...options.historyMessages);
   }
 
   const prompt = '<agent name="tiny-codex" role="coding_assistant">\nYou are a coding assistant. Use the provided tools to read, write, and modify files.\nWork in the project directory: ' + cwd + '\n</agent>';

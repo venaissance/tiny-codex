@@ -6,6 +6,22 @@ config({ path: resolve(__dirname, '../../..', '.env') });
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
 import { createMainWindow } from './window';
+
+// Set app name for macOS menu bar (must be before ready)
+app.name = 'TinyCodex';
+
+// Set dock icon in dev mode (packaged app uses electron-builder config)
+if (process.platform === 'darwin') {
+  const iconPath = join(__dirname, '../../..', 'assets', 'icon.png');
+  const fs = require('fs');
+  if (fs.existsSync(iconPath)) {
+    app.whenReady().then(() => {
+      const { nativeImage } = require('electron');
+      const icon = nativeImage.createFromPath(iconPath);
+      if (!icon.isEmpty()) app.dock?.setIcon(icon);
+    });
+  }
+}
 import { Database } from './db';
 import { ThreadManager } from './thread-manager';
 import { registerIpcHandlers } from './ipc/handlers';

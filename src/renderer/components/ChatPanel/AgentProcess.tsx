@@ -11,30 +11,54 @@ export interface ProcessStep {
 
 function AgentStateIndicator() {
   const agentState = useThreadStore((s) => s.agentState);
-  const agentStep = useThreadStore((s) => s.agentStep);
   const toolName = useThreadStore((s) => s.agentToolName);
   const isStreaming = useThreadStore((s) => s.isStreaming);
+  const streamingText = useThreadStore((s) => s.streamingText);
 
-  if (!isStreaming || agentState === 'idle') return null;
+  // Show whenever streaming and no text output yet (i.e., waiting for LLM or running tools)
+  if (!isStreaming) return null;
+  // Hide once LLM starts outputting text
+  if (streamingText) return null;
 
-  const stateLabels: Record<AgentStepState, string> = {
-    idle: '',
-    thinking: 'Thinking...',
-    tool_calling: `Calling ${toolName || 'tool'}...`,
-    reflecting: 'Reflecting...',
-    completed: 'Done',
-    error: 'Error',
-  };
+  let icon = '';
+  let label = '';
+  let sublabel = '';
+
+  if (agentState === 'tool_calling' && toolName) {
+    icon = '\u26A1';
+    label = toolName;
+    sublabel = toolName === 'bash' ? 'Executing command...'
+      : toolName === 'read_file' ? 'Reading file...'
+      : toolName === 'write_file' ? 'Writing file...'
+      : toolName === 'str_replace' ? 'Editing file...'
+      : toolName === 'glob' ? 'Searching files...'
+      : toolName === 'grep' ? 'Searching content...'
+      : 'Running...';
+  } else {
+    // Default: thinking/reflecting/waiting — always show brain
+    icon = '\uD83E\uDDE0';
+    label = 'Thinking';
+    sublabel = agentState === 'reflecting' ? 'Processing results...' : 'Analyzing your request...';
+  }
 
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      fontSize: 12, color: 'var(--text-muted)', padding: '4px 0',
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 16px', margin: '8px 0',
+      background: 'var(--surface-hover)',
+      borderRadius: 12,
+      border: '1px solid var(--border-subtle)',
     }}>
-      {agentState === 'thinking' && <span className="thinking-shimmer">●</span>}
-      {agentState === 'tool_calling' && <span style={{ color: 'var(--accent)' }}>⚙</span>}
-      {agentState === 'reflecting' && <span>◎</span>}
-      <span>Step {agentStep} · {stateLabels[agentState]}</span>
+      <div className="thinking-shimmer" style={{ fontSize: 20, lineHeight: 1 }}>{icon}</div>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{label}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{sublabel}</div>
+      </div>
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+        <span className="thinking-dot" style={{ animationDelay: '0s' }} />
+        <span className="thinking-dot" style={{ animationDelay: '0.2s' }} />
+        <span className="thinking-dot" style={{ animationDelay: '0.4s' }} />
+      </div>
     </div>
   );
 }

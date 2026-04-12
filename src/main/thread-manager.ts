@@ -95,6 +95,13 @@ export class ThreadManager {
     const thread = this.db.getThread(threadId);
     if (!thread) throw new Error(`Thread ${threadId} not found`);
 
+    // Load conversation history from DB
+    const dbMessages = this.db.getMessages(threadId);
+    const historyMessages = dbMessages.map((m) => ({
+      role: m.role as 'user' | 'assistant' | 'tool',
+      content: m.content as any[],
+    }));
+
     const provider = this.resolveProvider(thread.model_id);
     const model = new Model(thread.model_id, provider);
     const agent = await createCodingAgent({
@@ -102,6 +109,7 @@ export class ThreadManager {
       cwd: thread.project_path,
       threadId,
       onStateChange: (event) => this.onStateChange?.(event),
+      historyMessages,
     });
 
     this.agents.set(threadId, agent);

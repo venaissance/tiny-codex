@@ -1,11 +1,10 @@
 {
   "name": "tiny-codex",
   "version": "1.0.0",
-  "description": "",
+  "description": "Lightweight Electron-based AI coding assistant",
   "main": "dist/main/main/index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "author": "",
+  "license": "ISC",
   "scripts": {
     "dev": "bash scripts/dev.sh",
     "dev:renderer": "vite src/renderer --port 5173",
@@ -13,11 +12,11 @@
     "build": "tsc --project tsconfig.main.json && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "pack": "pnpm run build && electron-builder --dir",
+    "release": "pnpm run build && electron-builder"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@streamdown/cjk": "^1.0.3",
@@ -30,6 +29,7 @@
     "lucide-react": "^1.8.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "shiki": "^3.23.0",
     "sql.js": "^1.14.1",
     "streamdown": "^2.5.0",
     "tailwindcss": "^4.2.2",

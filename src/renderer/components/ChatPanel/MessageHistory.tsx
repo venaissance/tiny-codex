@@ -8,6 +8,21 @@ interface Message {
   content: Array<{ type: string; [key: string]: any }>;
 }
 
+function describeToolUse(name: string, input: any): string {
+  const fileName = (p: string) => p?.split('/').pop() ?? p;
+  switch (name) {
+    case 'write_file': return `Wrote ${fileName(input?.path)}`;
+    case 'read_file': return `Read ${fileName(input?.path)}`;
+    case 'str_replace': return `Edited ${fileName(input?.path)}`;
+    case 'bash': return `Ran \`${(input?.command ?? '').slice(0, 40)}\``;
+    case 'list_dir': return `Listed ${fileName(input?.path) || 'files'}`;
+    case 'glob': return `Searched ${input?.pattern ?? 'files'}`;
+    case 'grep': return `Grep \`${(input?.pattern ?? '').slice(0, 30)}\``;
+    case 'ask_user': return 'Asked user';
+    default: return `Used ${name}`;
+  }
+}
+
 type GroupedItem =
   | { type: 'user'; text: string }
   | { type: 'process'; steps: ProcessStep[]; summary: string }
@@ -34,7 +49,7 @@ function groupMessages(messages: Message[]): GroupedItem[] {
       if (hasToolUse) {
         // Collect this assistant message + following tool results into a process block
         const steps: ProcessStep[] = [];
-        const toolNames: string[] = [];
+        const toolDescriptions: string[] = [];
 
         for (const c of msg.content) {
           if (c.type === 'thinking') {
@@ -45,7 +60,7 @@ function groupMessages(messages: Message[]): GroupedItem[] {
               content: c.thinking,
             });
           } else if (c.type === 'tool_use') {
-            toolNames.push(c.name);
+            toolDescriptions.push(describeToolUse(c.name, c.input));
             steps.push({
               type: 'tool_call',
               icon: '\uD83D\uDD27',
@@ -71,8 +86,8 @@ function groupMessages(messages: Message[]): GroupedItem[] {
           i++;
         }
 
-        const summary = toolNames.length > 0
-          ? `Used ${toolNames.join(', ')}`
+        const summary = toolDescriptions.length > 0
+          ? toolDescriptions.join(' \u2192 ')
           : 'Agent processing';
 
         groups.push({ type: 'process', steps, summary });
@@ -112,9 +127,9 @@ function groupMessages(messages: Message[]): GroupedItem[] {
   return groups;
 }
 
-export function MessageHistory({ messages, streamingText }: { messages: Message[]; streamingText?: string }) {
+export function MessageHistory({ messages, streamingText, isStreaming: isStreamingProp = false }: { messages: Message[]; streamingText?: string; isStreaming?: boolean }) {
   const grouped = groupMessages(messages);
-  const isStreaming = !!streamingText;
+  const isStreaming = isStreamingProp;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when messages or streaming text changes
@@ -140,8 +155,8 @@ export function MessageHistory({ messages, streamingText }: { messages: Message[
           )}
         </div>
       ))}
-      {/* Agent state indicator */}
-      {isStreaming && !streamingText && <AgentStateIndicator />}
+      {/* Agent state indicator — shows between tool calls and during LLM thinking */}
+      {isStreaming && <AgentStateIndicator />}
       {/* Streaming text — Streamdown handles animation + caret */}
       {isStreaming && streamingText && (
         <div style={{ marginBottom: 16 }}>

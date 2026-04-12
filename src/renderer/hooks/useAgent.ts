@@ -76,8 +76,38 @@ export function useAgent() {
           streamingText: '',
           messages: [...s.messages, msg],
         }));
+        if (msg?.role === 'assistant') {
+          // When agent writes/edits a file, auto-preview it
+          for (const c of msg.content ?? []) {
+            if (c.type === 'tool_use' && (c.name === 'write_file' || c.name === 'str_replace')) {
+              const filePath = c.input?.path;
+              if (filePath) {
+                window.dispatchEvent(new CustomEvent('file-written', { detail: filePath }));
+              }
+            }
+            // bash mv/cp → preview the destination file
+            if (c.type === 'tool_use' && c.name === 'bash') {
+              const cmd = (c.input?.command ?? '').trim();
+              // Match: mv "source" "dest" OR mv source dest (last non-flag arg)
+              const mvMatch = cmd.match(/\bmv\s+(?:-\S+\s+)*(?:"[^"]+"|'[^']+'|\S+)\s+("[^"]+"|'[^']+'|(\S+))\s*$/);
+              if (mvMatch) {
+                const dest = (mvMatch[1] || mvMatch[2]).replace(/^["']|["']$/g, '');
+                window.dispatchEvent(new CustomEvent('file-written', { detail: dest }));
+              }
+            }
+          }
+        }
         if (msg?.role === 'tool') {
           window.dispatchEvent(new CustomEvent('file-changed'));
+          // Check tool results for file paths (write_file result, bash mv result)
+          for (const c of msg.content ?? []) {
+            const text = typeof c.content === 'string' ? c.content : '';
+            // "File written: /path/to/file"
+            const writtenMatch = text.match(/File written:\s*(\S+)/);
+            if (writtenMatch) {
+              window.dispatchEvent(new CustomEvent('file-written', { detail: writtenMatch[1] }));
+            }
+          }
         }
       });
       if (unsub) cleanups.push(unsub);

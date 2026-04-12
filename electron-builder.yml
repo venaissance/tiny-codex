@@ -1,5 +1,5 @@
-appId: com.tiny-codex.app
-productName: tiny-codex
+appId: com.tinycodex.app
+productName: TinyCodex
 directories:
   output: release
 files:
@@ -7,4 +7,4 @@ files:
   - package.json
 mac:
   target: dmg
-  icon: null
+  icon: assets/icon.icns

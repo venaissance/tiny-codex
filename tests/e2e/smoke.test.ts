@@ -213,6 +213,27 @@ test.describe('Smoke Test (Mock LLM)', () => {
     expect(cssVars.mutedForeground).toBeTruthy();
     expect(cssVars.accent).toBeTruthy();
 
+    // Verify Shiki hand-written CSS rules exist (not via @source inline)
+    const hasShikiCSS = await window.evaluate(() => {
+      const sheets = Array.from(document.styleSheets);
+      let cssText = '';
+      for (const sheet of sheets) {
+        try {
+          for (const rule of sheet.cssRules) { cssText += rule.cssText + ' '; }
+        } catch {}
+      }
+      return {
+        sdmColor: cssText.includes('--sdm-c'),
+        sdmBg: cssText.includes('--sdm-tbg'),
+        shikiDark: cssText.includes('--shiki-dark'),
+        counterLine: cssText.includes('counter(line)'),
+      };
+    });
+    expect(hasShikiCSS.sdmColor).toBe(true);
+    expect(hasShikiCSS.sdmBg).toBe(true);
+    expect(hasShikiCSS.shikiDark).toBe(true);
+    expect(hasShikiCSS.counterLine).toBe(true);
+
     // Verify KaTeX color inherit rule is applied
     const katexInherit = await window.evaluate(() => {
       const sheets = Array.from(document.styleSheets);

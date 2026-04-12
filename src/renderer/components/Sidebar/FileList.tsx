@@ -1,8 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface FileEntry {
   name: string;
   isDirectory: boolean;
+}
+
+function FileItem({ name, isDirectory, isSelected, onClick }: {
+  name: string;
+  isDirectory: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isSelected) {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isSelected]);
+
+  return (
+    <div
+      ref={ref}
+      className="sidebar-item"
+      data-active={isSelected ? 'true' : 'false'}
+      onClick={onClick}
+      style={{
+        fontSize: 12,
+        padding: '4px 10px',
+        cursor: isDirectory ? 'default' : 'pointer',
+        opacity: isDirectory ? 0.7 : 1,
+      }}
+    >
+      <span className="sidebar-item-icon" style={{ fontSize: 12 }}>
+        {isDirectory ? '\uD83D\uDCC1' : '\uD83D\uDCC4'}
+      </span>
+      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+    </div>
+  );
 }
 
 export function FileList({ projectPath, selectedFile, onSelectFile, refreshKey }: {
@@ -46,23 +81,13 @@ export function FileList({ projectPath, selectedFile, onSelectFile, refreshKey }
         const fullPath = `${projectPath}/${f.name}`;
         const isSelected = selectedFile === fullPath;
         return (
-          <div
+          <FileItem
             key={f.name}
-            className="sidebar-item"
-            data-active={isSelected ? 'true' : 'false'}
+            name={f.name}
+            isDirectory={f.isDirectory}
+            isSelected={isSelected}
             onClick={() => !f.isDirectory && onSelectFile?.(fullPath)}
-            style={{
-              fontSize: 12,
-              padding: '4px 10px',
-              cursor: f.isDirectory ? 'default' : 'pointer',
-              opacity: f.isDirectory ? 0.7 : 1,
-            }}
-          >
-            <span className="sidebar-item-icon" style={{ fontSize: 12 }}>
-              {f.isDirectory ? '📁' : '📄'}
-            </span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
-          </div>
+          />
         );
       })}
     </div>
