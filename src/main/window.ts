@@ -16,11 +16,9 @@ export function createMainWindow(): BrowserWindow {
     },
   });
 
-  if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173');
-  } else {
-    win.loadFile(join(__dirname, '../../renderer/index.html'));
-  }
+  // Always load from built files — the Vite dev server doesn't compile Tailwind v4
+  // utilities. vite build --watch handles rebuilds with full CSS compilation.
+  win.loadFile(join(__dirname, '../../renderer/index.html'));
 
   return win;
 }

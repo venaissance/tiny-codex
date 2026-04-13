@@ -1,9 +1,11 @@
 /* ===== Tailwind v4 — required for Streamdown component styles ===== */
 @import "tailwindcss";
 
-/* Streamdown uses Tailwind classes internally — force-include them via @source inline */
-@source inline("absolute relative fixed hidden block inline-block group flex flex-1 flex-col gap-1 gap-2 gap-4 items-center justify-center justify-end w-4 w-8 w-full h-4 h-8 h-full size-4 size-full min-h-28 max-h-32 max-w-full max-w-md p-1 p-2 p-3 p-4 p-6 px-3 px-4 py-1 py-2 pl-4 pt-0 m-0 ml-1 mt-1 mt-2 mt-6 mb-2 mx-4 my-4 my-6 overflow-auto overflow-hidden overflow-x-auto overflow-y-auto rounded rounded-full rounded-lg rounded-md rounded-xl border border-b-2 border-l-4 border-border border-collapse border-current border-sidebar divide-y divide-border bg-background bg-muted bg-primary bg-sidebar bg-red-50 bg-red-100 text-xs text-sm text-base text-lg text-xl text-2xl text-3xl text-left text-muted-foreground text-primary text-primary-foreground text-red-600 text-red-700 text-red-800 font-medium font-mono font-semibold cursor-pointer opacity-0 transition-all transition-colors transition-transform animate-spin appearance-none backdrop-blur-sm inset-0 top-2 top-4 top-full right-0 right-2 right-4 bottom-2 bottom-4 left-2 left-4 z-10 z-20 z-50 group-hover:block group-hover:opacity-100 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50");
-/* Arbitrary-value classes that can't go in @source inline (brackets break parser) */
+/* Streamdown uses Tailwind classes internally. StreamdownSafelist.tsx in this directory
+   ensures the oxide scanner detects all needed utility classes during compilation.
+   The @source directive below explicitly includes the safelist for both dev and build. */
+@source "./StreamdownSafelist.tsx";
+/* Arbitrary-value classes that can't be auto-detected (brackets break Tailwind parser) */
 [data-streamdown] { --tw-sdm-min-w: 120px; --tw-sdm-min-h: 200px; }
 .min-w-\[120px\] { min-width: 120px; }
 .min-h-\[200px\] { min-height: 200px; }
@@ -27,6 +29,7 @@
   --color-border: var(--border);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--surface-hover);
   --color-sidebar: var(--sidebar);
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--accent);

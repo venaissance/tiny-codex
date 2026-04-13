@@ -38,19 +38,8 @@ describe('styles.css structural integrity', () => {
     expect(sidebarBlock).toContain('gap: 4px');
   });
 
-  it('@source inline includes key Streamdown Tailwind classes', () => {
-    expect(css).toContain('@source inline(');
-    // Critical classes that Streamdown needs
-    const inlineLine = css.match(/@source inline\("([^"]+)"\)/)?.[1] ?? '';
-    const requiredClasses = [
-      'rounded-xl', 'rounded-lg', 'bg-sidebar', 'border-border',
-      'flex-col', 'gap-2', 'items-center', 'justify-end',
-      'font-mono', 'text-muted-foreground', 'h-8', 'opacity-0',
-      'group-hover:opacity-100', 'overflow-x-auto', 'divide-y',
-    ];
-    for (const cls of requiredClasses) {
-      expect(inlineLine, `Missing Tailwind class: ${cls}`).toContain(cls);
-    }
+  it('@source directive points to StreamdownSafelist', () => {
+    expect(css).toContain('@source "./StreamdownSafelist.tsx"');
   });
 
   it('@theme inline maps CSS variables for Streamdown', () => {

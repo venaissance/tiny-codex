@@ -39,7 +39,7 @@ describe('Welcome', () => {
 
   it('calls onQuickAction with card title when clicked', () => {
     const onAction = vi.fn();
-    render(<Welcome onQuickAction={onAction} />);
+    render(<Welcome onQuickAction={onAction} projectPath="/tmp/test" />);
     fireEvent.click(screen.getByText('Write a tech blog'));
     expect(onAction).toHaveBeenCalledWith('Write a tech blog');
   });

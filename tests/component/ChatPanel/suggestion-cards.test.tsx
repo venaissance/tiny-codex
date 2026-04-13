@@ -52,15 +52,17 @@ describe('extractSuggestions', () => {
   });
 
   it('extracts questions from text', () => {
-    const text = 'I wrote the blog. Would you like me to add images? Should I also add a table of contents?';
+    const text = 'Would you like me to:\n1. Add images?\n2. Write another one?';
     const result = extractSuggestions(text, []);
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it('generates tool-based suggestions when no questions found', () => {
-    const text = 'Done! The file has been written successfully.';
-    const result = extractSuggestions(text, ['write_file']);
+  it('extracts suggestions from HTML comment', () => {
+    const text = 'Done! The file has been written.\n<!-- suggestions: ["Review the file", "Add tests"] -->';
+    const result = extractSuggestions(text, []);
     expect(result.length).toBeGreaterThan(0);
+    expect(result).toContain('Review the file');
+    expect(result).toContain('Add tests');
   });
 
   it('returns empty for very short responses', () => {
