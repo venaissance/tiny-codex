@@ -9,7 +9,7 @@
     "dev": "bash scripts/dev.sh",
     "dev:renderer": "vite src/renderer --port 5173",
     "dev:main": "tsc --project tsconfig.main.json --watch",
-    "build": "tsc --project tsconfig.main.json && vite build",
+    "build": "npx tsc --project tsconfig.main.json && npx vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
