@@ -22,6 +22,8 @@ let mockApi: ReturnType<typeof createMockApi>;
 beforeEach(() => {
   mockApi = createMockApi();
   (window as any).api = mockApi;
+  // Mock window.confirm for delete tests (happy-dom doesn't have it)
+  window.confirm = vi.fn(() => true);
 });
 
 describe('FileList — flat rendering', () => {

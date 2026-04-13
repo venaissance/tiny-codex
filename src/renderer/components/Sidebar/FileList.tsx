@@ -354,39 +354,51 @@ export function FileList({
     setRenameValue(name);
   }, []);
 
+  const isConfirmingRef = useRef(false);
+
   const confirmRename = useCallback(async () => {
-    if (!renamingPath || !renameValue) {
+    if (isConfirmingRef.current) return;
+    isConfirmingRef.current = true;
+    try {
+      if (!renamingPath || !renameValue.trim()) {
+        setRenamingPath(null);
+        return;
+      }
+      const parentDir = renamingPath.substring(0, renamingPath.lastIndexOf('/'));
+      const newPath = `${parentDir}/${renameValue.trim()}`;
+      if (newPath !== renamingPath && api?.renameFile) {
+        await api.renameFile(renamingPath, newPath);
+        setTree((prev) => {
+          const update = (nodes: TreeNode[]): TreeNode[] =>
+            nodes.map((n) => {
+              if (n.fullPath === renamingPath) {
+                return { ...n, name: renameValue.trim(), fullPath: newPath };
+              }
+              if (n.children) {
+                return { ...n, children: update(n.children) };
+              }
+              return n;
+            });
+          return update(prev);
+        });
+        onSelectFile?.(newPath);
+        window.dispatchEvent(new CustomEvent('file-changed'));
+      }
       setRenamingPath(null);
-      return;
+    } finally {
+      isConfirmingRef.current = false;
     }
-    const parentDir = renamingPath.substring(0, renamingPath.lastIndexOf('/'));
-    const newPath = `${parentDir}/${renameValue}`;
-    if (newPath !== renamingPath && api?.renameFile) {
-      await api.renameFile(renamingPath, newPath);
-      // Refresh the parent directory contents inline
-      setTree((prev) => {
-        const update = (nodes: TreeNode[]): TreeNode[] =>
-          nodes.map((n) => {
-            if (n.fullPath === renamingPath) {
-              return { ...n, name: renameValue, fullPath: newPath };
-            }
-            if (n.children) {
-              return { ...n, children: update(n.children) };
-            }
-            return n;
-          });
-        return update(prev);
-      });
-    }
-    setRenamingPath(null);
-  }, [renamingPath, renameValue, api]);
+  }, [renamingPath, renameValue, api, onSelectFile]);
 
   const cancelRename = useCallback(() => {
+    if (isConfirmingRef.current) return; // Don't cancel during confirm
     setRenamingPath(null);
   }, []);
 
-  // Delete
+  // Delete with confirmation
   const handleDelete = useCallback(async (path: string) => {
+    const name = path.split('/').pop() ?? path;
+    if (!window.confirm(`Delete "${name}"?`)) return;
     if (api?.deleteFile) {
       await api.deleteFile(path);
       setTree((prev) => {
@@ -399,26 +411,74 @@ export function FileList({
           });
         return remove(prev);
       });
+      window.dispatchEvent(new CustomEvent('file-changed'));
     }
   }, [api]);
 
-  // Create file/dir
+  // Create file/dir — add to tree, enter rename mode, dispatch refresh
   const handleCreateFile = useCallback(async (parentPath: string) => {
     const name = 'untitled';
     const filePath = `${parentPath}/${name}`;
     if (api?.createFile) {
       await api.createFile(filePath);
-      // Refresh would be done via refreshKey from parent; for now inline add
+      // Find parent depth
+      const findDepth = (nodes: TreeNode[]): number => {
+        for (const n of nodes) {
+          if (n.fullPath === parentPath) return n.depth + 1;
+          if (n.children) { const d = findDepth(n.children); if (d >= 0) return d; }
+        }
+        return 0;
+      };
+      const depth = parentPath === projectPath ? 0 : findDepth(tree);
+      const newNode: TreeNode = { name, fullPath: filePath, isDirectory: false, depth, expanded: false };
+
+      setTree((prev) => {
+        const insert = (nodes: TreeNode[]): TreeNode[] =>
+          nodes.map((n) => {
+            if (n.fullPath === parentPath && n.children) {
+              return { ...n, children: [...n.children, newNode] };
+            }
+            if (n.children) return { ...n, children: insert(n.children) };
+            return n;
+          });
+        return parentPath === projectPath ? [...prev, newNode] : insert(prev);
+      });
+      // Enter rename mode so user can name the file
+      startRename(filePath, name);
+      window.dispatchEvent(new CustomEvent('file-changed'));
     }
-  }, [api]);
+  }, [api, tree, projectPath, startRename]);
 
   const handleCreateDir = useCallback(async (parentPath: string) => {
     const name = 'new-folder';
     const dirPath = `${parentPath}/${name}`;
     if (api?.createDir) {
       await api.createDir(dirPath);
+      const findDepth = (nodes: TreeNode[]): number => {
+        for (const n of nodes) {
+          if (n.fullPath === parentPath) return n.depth + 1;
+          if (n.children) { const d = findDepth(n.children); if (d >= 0) return d; }
+        }
+        return 0;
+      };
+      const depth = parentPath === projectPath ? 0 : findDepth(tree);
+      const newNode: TreeNode = { name, fullPath: dirPath, isDirectory: true, depth, expanded: false };
+
+      setTree((prev) => {
+        const insert = (nodes: TreeNode[]): TreeNode[] =>
+          nodes.map((n) => {
+            if (n.fullPath === parentPath && n.children) {
+              return { ...n, children: [newNode, ...n.children] };
+            }
+            if (n.children) return { ...n, children: insert(n.children) };
+            return n;
+          });
+        return parentPath === projectPath ? [newNode, ...prev] : insert(prev);
+      });
+      startRename(dirPath, name);
+      window.dispatchEvent(new CustomEvent('file-changed'));
     }
-  }, [api]);
+  }, [api, tree, projectPath, startRename]);
 
   // Copy path
   const handleCopyPath = useCallback((path: string) => {
@@ -431,10 +491,9 @@ export function FileList({
     const { targetPath, targetIsDir } = contextMenu;
     const items: ContextMenuItem[] = [];
 
-    if (targetIsDir) {
-      items.push({ label: 'New File', action: () => handleCreateFile(targetPath) });
-      items.push({ label: 'New Folder', action: () => handleCreateDir(targetPath) });
-    }
+    const parentDir = targetIsDir ? targetPath : targetPath.substring(0, targetPath.lastIndexOf('/'));
+    items.push({ label: 'New File', action: () => handleCreateFile(parentDir) });
+    items.push({ label: 'New Folder', action: () => handleCreateDir(parentDir) });
     items.push({
       label: 'Rename',
       action: () => {
