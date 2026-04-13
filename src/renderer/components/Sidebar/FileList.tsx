@@ -303,14 +303,14 @@ export function FileList({
     // Use a promise-based approach to check current state inside setTree (no stale closure)
     let wasExpanded = false;
     setTree((prev) => {
-      const find = (nodes: TreeNode[]): boolean => {
+      const find = (nodes: TreeNode[]): boolean | null => {
         for (const n of nodes) {
           if (n.fullPath === targetPath) return n.expanded ?? false;
-          if (n.children) { const r = find(n.children); if (r) return r; }
+          if (n.children) { const r = find(n.children); if (r !== null) return r; }
         }
-        return false;
+        return null; // not found
       };
-      wasExpanded = find(prev);
+      wasExpanded = find(prev) === true;
 
       if (wasExpanded) {
         // Collapse
