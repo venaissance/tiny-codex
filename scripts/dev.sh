@@ -16,7 +16,7 @@ TSC_PID=$!
 sleep 2
 
 # Start Electron
-NODE_ENV=development npx electron dist/main/index.js &
+NODE_ENV=development npx electron dist/main/main/index.js &
 ELECTRON_PID=$!
 
 # Cleanup on exit
