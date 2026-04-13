@@ -99,7 +99,7 @@ export function InputBox({ onSend, onAbort, isStreaming, skills, models, current
   };
 
   const doSubmit = useCallback(() => {
-    if (!text.trim() || isStreaming) return;
+    if (!text.trim() || isStreaming || !projectPath) return;
     let fullText = text.trim();
     if (attachedFiles.length > 0) {
       const fileList = attachedFiles.map((f) => f.name).join(', ');
@@ -171,10 +171,10 @@ export function InputBox({ onSend, onAbort, isStreaming, skills, models, current
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="Ask anything, @ files, / commands..."
+            placeholder={projectPath ? "Ask anything, @ files, / commands..." : "Open a project first to start coding..."}
             className="input-textarea"
             rows={1}
-            disabled={isStreaming}
+            disabled={isStreaming || !projectPath}
           />
 
           {/* Toolbar */}

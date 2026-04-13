@@ -13,9 +13,9 @@ import { useThread } from './hooks/useThread';
 
 const MODELS = ['MiniMax-M2.7', 'glm-5.1'];
 const SKILLS = [
-  { name: 'Image Gen', icon: '🎨' },
   { name: 'Tech Writer', icon: '📝' },
   { name: 'Code Review', icon: '🔍' },
+  { name: 'Image Gen', icon: '🎨' },
 ];
 
 const api = (window as any).api;
@@ -293,7 +293,7 @@ export function App() {
           onSelectFile={handleSelectFile}
           fileRefreshKey={fileRefreshKey}
         />
-        {activeThread ? (
+        {activeThread && messages.length > 0 ? (
           <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText} isStreaming={isStreaming} onSuggestionSelect={(text) => activeThreadId && sendMessage(activeThreadId, text)}>
             <InputBox
               onSend={handleSend}

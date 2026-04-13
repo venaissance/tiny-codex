@@ -38,7 +38,17 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<Ag
     messages.push(...options.historyMessages);
   }
 
-  const prompt = '<agent name="tiny-codex" role="coding_assistant">\nYou are a coding assistant. Use the provided tools to read, write, and modify files.\nWork in the project directory: ' + cwd + '\n</agent>';
+  const prompt = `<agent name="tiny-codex" role="coding_assistant">
+You are a coding assistant. Use the provided tools to read, write, and modify files.
+Work in the project directory: ${cwd}
+
+IMPORTANT: At the end of EVERY response, generate 2-3 short follow-up actions the user might want next. Output them as an HTML comment in this exact format:
+<!-- suggestions: ["action 1", "action 2", "action 3"] -->
+The suggestions must be context-aware, specific, and actionable (not generic). Examples:
+- After writing a file: ["Add unit tests", "Optimize performance", "Write documentation"]
+- After explaining code: ["Refactor this function", "Show usage examples", "Find similar patterns"]
+- After fixing a bug: ["Run tests to verify", "Check for similar issues", "Add regression test"]
+</agent>`;
 
   return new Agent({
     model: options.model,

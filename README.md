@@ -62,7 +62,8 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **Live streaming preview** — Files render in real-time as the agent writes them (Markdown, HTML, code, images, PDF, CSV)
 - **Thinking card** — Expand to see the AI's reasoning process as it works
 - **Task planning** — Agent breaks down your request into steps, checks them off as it goes
-- **Suggestion buttons** — After each response, get smart follow-up actions you can click
+- **Welcome screen** — Quick-start cards when you open a new thread; disabled until you open a project
+- **Suggestion buttons** — After each response, get smart follow-up actions you can click (model-generated or regex-extracted)
 - **File explorer** — Tree view with create, rename, delete, and right-click context menu
 
 ### What powers it
@@ -79,7 +80,7 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 | Provider | Streaming | Notes |
 |----------|-----------|-------|
 | MiniMax | Yes | Recommended. `reasoning_split=true` auto-enabled |
-| GLM (ZhipuAI) | No | Works, but no streaming preview |
+| GLM (ZhipuAI) | Yes | Streaming enabled (URL bug fixed) |
 | Doubao/ARK | Yes | ByteDance Volcano Engine |
 | OpenAI | Yes | Any OpenAI-compatible endpoint |
 
@@ -90,10 +91,12 @@ git clone https://github.com/venaissance/tiny-codex.git
 cd tiny-codex
 pnpm install
 cp .env.example .env   # add your API key (MiniMax recommended)
-pnpm run dev
+pnpm run dev            # uses vite build --watch (not dev server)
 ```
 
-**First thing to try:** Click "Write a tech blog" on the welcome screen. Watch the agent plan, write, and preview — all streaming.
+> **Note:** Dev mode runs `vite build --watch` instead of Vite dev server. This is required because `@tailwindcss/vite` doesn't compile utility classes in dev server mode with Tailwind v4.
+
+**First thing to try:** Open a project folder, then click a quick-start card on the welcome screen. Watch the agent plan, write, and preview — all streaming.
 
 ### Download
 
@@ -158,7 +161,7 @@ graph TB
 
     subgraph Providers["Providers (OpenAI Compatible)"]
         MiniMax["MiniMax<br/><small>streaming + reasoning</small>"]
-        GLM["GLM<br/><small>non-streaming</small>"]
+        GLM["GLM<br/><small>streaming</small>"]
         ARK["Doubao/ARK"]
         OAI["OpenAI"]
     end

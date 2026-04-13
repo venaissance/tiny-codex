@@ -57,12 +57,12 @@ app.whenReady().then(async () => {
     }));
   }
 
-  // GLM — OpenAI 兼容模式 (streaming disabled: returns 404 with stream:true)
+  // GLM — OpenAI 兼容模式 (之前 404 是 URL 双斜杠 bug，已修复)
   if (process.env.GLM_API_KEY) {
     providers.set('glm', new OpenAIModelProvider({
       baseURL: process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4',
       apiKey: process.env.GLM_API_KEY,
-      supportsStreaming: false,
+      supportsStreaming: true,
     }));
   }
 

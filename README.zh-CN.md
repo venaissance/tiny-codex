@@ -62,7 +62,8 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **实时流式预览** — Agent 写文件时右侧同步渲染（Markdown、HTML、代码、图片、PDF、CSV）
 - **思考卡片** — 展开查看 AI 的实时推理过程
 - **任务规划** — Agent 先列出计划，再逐步执行打勾
-- **建议按钮** — 每次回复后自动生成可点击的后续操作
+- **欢迎页** — 新建线程时显示快速开始卡片；未打开项目时禁用
+- **建议按钮** — 每次回复后自动生成可点击的后续操作（模型生成或正则提取）
 - **文件管理** — 树形目录、新建/重命名/删除文件、右键菜单
 
 ### 底层能力
@@ -79,7 +80,7 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 | 提供商 | 流式输出 | 备注 |
 |--------|---------|------|
 | MiniMax | 支持 | 推荐。自动启用 `reasoning_split=true` |
-| GLM (智谱) | 不支持 | 可用，但无流式预览 |
+| GLM (智谱) | 支持 | 流式已启用（URL bug 已修复） |
 | 豆包/ARK | 支持 | 字节跳动火山引擎 |
 | OpenAI | 支持 | 任何 OpenAI 兼容端点 |
 
@@ -90,10 +91,12 @@ git clone https://github.com/venaissance/tiny-codex.git
 cd tiny-codex
 pnpm install
 cp .env.example .env   # 填入你的 API Key（推荐 MiniMax）
-pnpm run dev
+pnpm run dev            # 使用 vite build --watch（非 dev server）
 ```
 
-**第一件事：** 点击欢迎页的「Write a tech blog」。看 Agent 规划、写作、预览 — 全部流式。
+> **注意：** 开发模式使用 `vite build --watch` 而非 Vite dev server。因为 Tailwind v4 的 `@tailwindcss/vite` 在 dev server 模式下不会编译 utility class。
+
+**第一件事：** 打开一个项目文件夹，然后点击欢迎页的快速开始卡片。看 Agent 规划、写作、预览 — 全部流式。
 
 ### 下载
 
@@ -158,7 +161,7 @@ graph TB
 
     subgraph Providers["Provider (OpenAI 兼容)"]
         MiniMax["MiniMax<br/><small>流式 + reasoning</small>"]
-        GLM["GLM<br/><small>非流式</small>"]
+        GLM["GLM<br/><small>流式</small>"]
         ARK["豆包/ARK"]
         OAI["OpenAI"]
     end

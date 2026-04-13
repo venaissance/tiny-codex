@@ -7,14 +7,16 @@ const CARDS = [
   { icon: '\uD83C\uDFA8', title: 'Generate images', desc: 'Create visuals with AI' },
 ];
 
-export function QuickCards({ onSelect }: { onSelect: (title: string) => void }) {
+export function QuickCards({ onSelect, disabled }: { onSelect: (title: string) => void; disabled?: boolean }) {
   return (
     <div className="quick-cards">
       {CARDS.map((card) => (
         <button
           key={card.title}
           className="quick-card"
-          onClick={() => onSelect(card.title)}
+          disabled={disabled}
+          onClick={() => !disabled && onSelect(card.title)}
+          style={disabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
         >
           <span className="quick-card-icon">{card.icon}</span>
           <div className="quick-card-title">{card.title}</div>

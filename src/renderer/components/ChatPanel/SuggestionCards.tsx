@@ -6,48 +6,37 @@ import React from 'react';
  * 1. Find questions in the text (Chinese and English patterns)
  * 2. If no questions, generate context-aware suggestions based on tools used
  */
-export function extractSuggestions(text: string, toolNames: string[]): string[] {
+export function extractSuggestions(text: string, _toolNames: string[]): string[] {
   if (text.length < 20) return [];
 
-  const suggestions: string[] = [];
+  // 1. Model-generated suggestions via HTML comment (preferred)
+  //    Format: <!-- suggestions: ["action 1", "action 2", "action 3"] -->
+  const commentMatch = text.match(/<!--\s*suggestions:\s*(\[[\s\S]*?\])\s*-->/);
+  if (commentMatch) {
+    try {
+      const parsed = JSON.parse(commentMatch[1]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter((s: unknown) => typeof s === 'string' && s.length > 2).slice(0, 3);
+      }
+    } catch { /* fall through to regex extraction */ }
+  }
 
-  // 1. Extract questions from text
-  const questionPatterns = [
-    /(?:Would you like|Do you want|Should I|Shall I|Want me to)[^.?!]*\?/gi,
-    /(?:需要|要不要|是否|可以帮你)[^。？！]*[？?]/g,
-  ];
-  for (const pattern of questionPatterns) {
-    const matches = text.match(pattern);
-    if (matches) {
-      for (const m of matches) {
-        const clean = m.trim();
-        if (clean.length > 5 && clean.length < 80) suggestions.push(clean);
+  // 2. Fallback: extract list items after a question prompt
+  const suggestions: string[] = [];
+  const promptListPattern = /(?:Would you like|Do you want|Should I|Shall I|Want me to|你想|需要我|要不要|是否|还需要|如果需要|比如|例如|可以考虑)[^]*$/gi;
+  const promptMatch = text.match(promptListPattern);
+  if (promptMatch) {
+    const block = promptMatch[0];
+    const items = block.match(/(?:^|\n)\s*(?:\d+[\.\)]\s*|[-*•]\s*).+/g);
+    if (items) {
+      for (const item of items) {
+        let clean = item.replace(/^\s*(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim();
+        clean = clean.replace(/\*\*/g, '');
+        clean = clean.replace(/\s*[（(][^)）]*[)）]\s*/g, ' ').trim();
+        clean = clean.replace(/[？?。.!]$/, '').trim();
+        if (clean.length > 2 && clean.length < 80) suggestions.push(clean);
       }
     }
-  }
-
-  if (suggestions.length > 0) return suggestions.slice(0, 3);
-
-  // 2. Generate context-based suggestions from tool usage
-  const toolSet = new Set(toolNames);
-
-  if (toolSet.has('write_file')) {
-    suggestions.push('Review and improve the file');
-    suggestions.push('Add more details');
-  }
-  if (toolSet.has('bash')) {
-    suggestions.push('Run it again with different params');
-  }
-  if (toolSet.has('read_file')) {
-    suggestions.push('Summarize what you found');
-  }
-  if (toolSet.has('str_replace')) {
-    suggestions.push('Show me the full updated file');
-  }
-
-  if (suggestions.length === 0 && text.length > 50) {
-    suggestions.push('Tell me more');
-    suggestions.push('Can you improve this?');
   }
 
   return suggestions.slice(0, 3);

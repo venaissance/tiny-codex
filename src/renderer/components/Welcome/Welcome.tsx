@@ -23,7 +23,7 @@ export function Welcome({ onQuickAction, onOpenProject, projectPath }: {
           {' '}or start a new thread
         </p>
       )}
-      <QuickCards onSelect={onQuickAction} />
+      <QuickCards onSelect={onQuickAction} disabled={!projectPath} />
     </div>
   );
 }

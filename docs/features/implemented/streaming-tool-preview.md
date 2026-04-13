@@ -13,7 +13,7 @@ write_file tool_use parameter. The content only appears after tool execution.
 
 1. **OpenAIModelProvider** (`src/community/openai/provider.ts`)
    - Forwards `tool_use_start` and `tool_use_delta` events via `onStream` callback
-   - Supports `supportsStreaming` flag per provider (e.g., MiniMax=true, GLM=false)
+   - Supports `supportsStreaming` flag per provider (all providers now streaming-enabled)
 
 2. **useAgent hook** (`src/renderer/hooks/useAgent.ts`)
    - On `tool_use_delta` for `write_file`/`str_replace`, accumulates JSON fragments
@@ -46,4 +46,4 @@ After:  [Thinking 3s] → [live preview streaming 60s alongside LLM generation]
 | File not yet on disk when assistant msg arrives | pendingWrites Map defers file-written to tool result |
 | Disk read overwrites streaming preview | isLivePreviewingRef guard |
 | Content extraction from partial JSON | Regex match + incremental accumulation |
-| GLM doesn't support streaming | supportsStreaming: false, falls back to non-streaming |
+| GLM previously had URL bug blocking streaming | Fixed: supportsStreaming: true for all providers |
