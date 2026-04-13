@@ -69,6 +69,7 @@ function FileTreeItem({
   onDoubleClickName,
   onStartRename,
   onDelete,
+  onDrop,
   renamingPath,
   renameValue,
   onRenameChange,
@@ -84,6 +85,7 @@ function FileTreeItem({
   onDoubleClickName: () => void;
   onStartRename: () => void;
   onDelete: () => void;
+  onDrop: (sourcePath: string) => void;
   renamingPath: string | null;
   renameValue: string;
   onRenameChange: (val: string) => void;
@@ -94,6 +96,7 @@ function FileTreeItem({
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isRenaming = renamingPath === node.fullPath;
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     if (isSelected) {
@@ -129,21 +132,43 @@ function FileTreeItem({
       data-active={isSelected ? 'true' : 'false'}
       data-testid="file-tree-item"
       tabIndex={0}
+      draggable={!isRenaming}
       onClick={onClick}
       onContextMenu={onContextMenu}
       onKeyDown={(e) => {
-        if (isRenaming) return; // Let the input handle keys
+        if (isRenaming) return;
         if (e.key === 'Enter') { e.preventDefault(); onStartRename(); }
         if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); onDelete(); }
+      }}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', node.fullPath);
+        e.dataTransfer.effectAllowed = 'move';
+      }}
+      onDragOver={(e) => {
+        if (!node.isDirectory) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragOver(false);
+        if (!node.isDirectory) return;
+        const sourcePath = e.dataTransfer.getData('text/plain');
+        if (sourcePath && sourcePath !== node.fullPath) {
+          onDrop(sourcePath);
+        }
       }}
       style={{
         fontSize: 12,
         padding: '4px 10px',
         paddingLeft,
-        cursor: node.isDirectory ? 'pointer' : 'pointer',
+        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         gap: 4,
+        ...(dragOver ? { background: 'color-mix(in srgb, var(--accent) 15%, transparent)', borderRadius: 6, outline: '1px dashed var(--accent)' } : {}),
       }}
     >
       {/* Expand arrow for directories */}
@@ -497,6 +522,39 @@ export function FileList({
     }
   }, [api, tree, projectPath, startRename]);
 
+  // Move file (drag & drop)
+  const handleMoveFile = useCallback(async (sourcePath: string, targetDirPath: string) => {
+    const fileName = sourcePath.split('/').pop() ?? '';
+    const newPath = `${targetDirPath}/${fileName}`;
+    if (sourcePath === newPath || sourcePath.startsWith(targetDirPath + '/')) return; // Can't move into self
+    if (api?.renameFile) {
+      await api.renameFile(sourcePath, newPath);
+      // Remove from old location, add to new location in tree
+      setTree((prev) => {
+        let movedNode: TreeNode | null = null;
+        const remove = (nodes: TreeNode[]): TreeNode[] =>
+          nodes.filter((n) => {
+            if (n.fullPath === sourcePath) { movedNode = { ...n, fullPath: newPath, depth: 0 }; return false; }
+            return true;
+          }).map((n) => n.children ? { ...n, children: remove(n.children) } : n);
+        const cleaned = remove(prev);
+        if (!movedNode) return cleaned;
+        // Insert into target dir's children
+        const insert = (nodes: TreeNode[]): TreeNode[] =>
+          nodes.map((n) => {
+            if (n.fullPath === targetDirPath && n.children) {
+              const m = { ...(movedNode as TreeNode), depth: n.depth + 1 };
+              return { ...n, children: [...n.children, m] };
+            }
+            if (n.children) return { ...n, children: insert(n.children) };
+            return n;
+          });
+        return insert(cleaned);
+      });
+      window.dispatchEvent(new CustomEvent('file-changed'));
+    }
+  }, [api]);
+
   // Copy path
   const handleCopyPath = useCallback((path: string) => {
     navigator.clipboard?.writeText(path);
@@ -558,6 +616,7 @@ export function FileList({
           onDoubleClickName={() => startRename(node.fullPath, node.name)}
           onStartRename={() => startRename(node.fullPath, node.name)}
           onDelete={() => handleDelete(node.fullPath)}
+          onDrop={(sourcePath) => handleMoveFile(sourcePath, node.fullPath)}
           renamingPath={renamingPath}
           renameValue={renameValue}
           onRenameChange={setRenameValue}
@@ -571,7 +630,7 @@ export function FileList({
       }
     }
     return result;
-  }, [filterNodes, selectedFile, onSelectFile, toggleDir, handleContextMenu, startRename, renamingPath, renameValue, confirmRename, cancelRename, searchQuery]);
+  }, [filterNodes, selectedFile, onSelectFile, toggleDir, handleContextMenu, handleDelete, handleMoveFile, startRename, renamingPath, renameValue, confirmRename, cancelRename, searchQuery]);
 
   if (!projectPath) {
     return <div style={{ padding: '4px 8px', fontSize: 12, color: 'var(--text-muted)' }}>No project opened</div>;
