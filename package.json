@@ -9,7 +9,7 @@
     "dev": "bash scripts/dev.sh",
     "dev:renderer": "vite src/renderer --port 5173",
     "dev:main": "tsc --project tsconfig.main.json --watch",
-    "build": "npx tsc --project tsconfig.main.json && npx vite build",
+    "build": "tsc --project tsconfig.main.json && vite build",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -51,6 +51,7 @@
     "happy-dom": "^20.8.9",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",
+    "vite": "^8.0.8",
     "vitest": "^4.1.4"
   }
 }
