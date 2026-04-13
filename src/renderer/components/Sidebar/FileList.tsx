@@ -67,6 +67,8 @@ function FileTreeItem({
   onToggle,
   onContextMenu,
   onDoubleClickName,
+  onStartRename,
+  onDelete,
   renamingPath,
   renameValue,
   onRenameChange,
@@ -80,6 +82,8 @@ function FileTreeItem({
   onToggle: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
   onDoubleClickName: () => void;
+  onStartRename: () => void;
+  onDelete: () => void;
   renamingPath: string | null;
   renameValue: string;
   onRenameChange: (val: string) => void;
@@ -100,9 +104,16 @@ function FileTreeItem({
   useEffect(() => {
     if (isRenaming && inputRef.current) {
       inputRef.current.focus();
-      inputRef.current.select();
+      // Select only the name part (before the last dot), not the extension
+      const val = inputRef.current.value;
+      const dotIdx = val.lastIndexOf('.');
+      if (dotIdx > 0 && !node.isDirectory) {
+        inputRef.current.setSelectionRange(0, dotIdx);
+      } else {
+        inputRef.current.select();
+      }
     }
-  }, [isRenaming]);
+  }, [isRenaming, node.isDirectory]);
 
   // Hide if search query doesn't match (only for files; directories always show if they have matching children -- handled at parent level)
   if (searchQuery && !node.isDirectory && !node.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -117,8 +128,14 @@ function FileTreeItem({
       className="sidebar-item"
       data-active={isSelected ? 'true' : 'false'}
       data-testid="file-tree-item"
+      tabIndex={0}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      onKeyDown={(e) => {
+        if (isRenaming) return; // Let the input handle keys
+        if (e.key === 'Enter') { e.preventDefault(); onStartRename(); }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); onDelete(); }
+      }}
       style={{
         fontSize: 12,
         padding: '4px 10px',
@@ -539,6 +556,8 @@ export function FileList({
           onToggle={() => toggleDir(node.fullPath)}
           onContextMenu={(e) => handleContextMenu(e, node.fullPath, node.isDirectory)}
           onDoubleClickName={() => startRename(node.fullPath, node.name)}
+          onStartRename={() => startRename(node.fullPath, node.name)}
+          onDelete={() => handleDelete(node.fullPath)}
           renamingPath={renamingPath}
           renameValue={renameValue}
           onRenameChange={setRenameValue}
