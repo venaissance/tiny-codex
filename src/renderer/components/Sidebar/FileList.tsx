@@ -300,23 +300,39 @@ export function FileList({
 
   // Toggle expand/collapse directory
   const toggleDir = useCallback(async (targetPath: string) => {
-    const updateNodes = (nodes: TreeNode[]): TreeNode[] =>
-      nodes.map((node) => {
-        if (node.fullPath === targetPath) {
-          if (node.expanded) {
-            // Collapse
-            return { ...node, expanded: false, children: undefined };
-          }
-          // Expand -- load children
-          return { ...node, loading: true };
+    // Use a promise-based approach to check current state inside setTree (no stale closure)
+    let wasExpanded = false;
+    setTree((prev) => {
+      const find = (nodes: TreeNode[]): boolean => {
+        for (const n of nodes) {
+          if (n.fullPath === targetPath) return n.expanded ?? false;
+          if (n.children) { const r = find(n.children); if (r) return r; }
         }
-        if (node.children) {
-          return { ...node, children: updateNodes(node.children) };
-        }
-        return node;
-      });
+        return false;
+      };
+      wasExpanded = find(prev);
 
-    setTree((prev) => updateNodes(prev));
+      if (wasExpanded) {
+        // Collapse
+        const collapse = (nodes: TreeNode[]): TreeNode[] =>
+          nodes.map((n) => {
+            if (n.fullPath === targetPath) return { ...n, expanded: false, children: undefined };
+            if (n.children) return { ...n, children: collapse(n.children) };
+            return n;
+          });
+        return collapse(prev);
+      }
+      // Expand — set loading
+      const expand = (nodes: TreeNode[]): TreeNode[] =>
+        nodes.map((n) => {
+          if (n.fullPath === targetPath) return { ...n, loading: true };
+          if (n.children) return { ...n, children: expand(n.children) };
+          return n;
+        });
+      return expand(prev);
+    });
+
+    if (wasExpanded) return; // Was collapsing, done
 
     // Load children
     if (api?.listFiles) {

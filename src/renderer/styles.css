@@ -232,6 +232,9 @@ body {
 /* ===== Sidebar ===== */
 .sidebar {
   width: 220px;
+  min-width: 160px;
+  max-width: 400px;
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -242,6 +245,20 @@ body {
 }
 .sidebar::-webkit-scrollbar {
   display: none;
+}
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+  opacity: 0.4;
 }
 
 .sidebar-btn {
