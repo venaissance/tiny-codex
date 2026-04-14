@@ -8,3 +8,5 @@ files:
 mac:
   target: dmg
   icon: assets/icon.icns
+# Don't publish — semantic-release handles GitHub releases
+publish: null

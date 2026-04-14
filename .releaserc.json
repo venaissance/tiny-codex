@@ -18,7 +18,7 @@
     }],
     ["@semantic-release/github", {
       "assets": [
-        {"path": "release/*.dmg", "label": "macOS DMG"}
+        {"path": "release/*.dmg", "label": "TinyCodex macOS (Apple Silicon)"}
       ]
     }]
   ]
