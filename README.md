@@ -20,7 +20,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/license/venaissance/tiny-codex" alt="License" />
   <img src="https://img.shields.io/github/v/release/venaissance/tiny-codex" alt="Release" />
-  <img src="https://img.shields.io/badge/tests-240%2B%20passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-259%20passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/platform-macOS-blue" alt="Platform" />
 </p>
 
@@ -59,12 +59,13 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 
 ### What you see
 
-- **Live streaming preview** — Files render in real-time as the agent writes them (Markdown, HTML, code, images, PDF, CSV)
+- **Live streaming preview** — Files render in real-time as the agent writes them (Markdown, HTML, code, images, PDF, CSV). HTML pages build up visually in the preview as the model generates them.
+- **Skills with QuickCards** — 4 built-in skills (frontend-design, technical-writing, systematic-debugging, image-generation) bound to welcome screen cards. Click one to start a skill-driven workflow.
+- **Interactive ask_user** — Agent asks you questions with clickable option cards. Choose a direction, then watch it build.
 - **Thinking card** — Expand to see the AI's reasoning process as it works
 - **Task planning** — Agent breaks down your request into steps, checks them off as it goes
-- **Welcome screen** — Quick-start cards when you open a new thread; disabled until you open a project
-- **Suggestion buttons** — After each response, get smart follow-up actions you can click (model-generated or regex-extracted)
-- **File explorer** — Tree view with create, rename, delete, and right-click context menu
+- **Suggestion buttons** — After each response, get smart follow-up actions (model-generated via HTML comments)
+- **File explorer** — Tree view with create, rename, delete, drag-and-drop, search, and auto-expand to selected file
 
 ### What powers it
 
@@ -72,7 +73,9 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **Streaming pipeline** — SSE → rAF batching → Streamdown rendering → auto-scroll. No flicker, no lag.
 - **Multi-provider** — MiniMax, GLM, Doubao, OpenAI — any OpenAI-compatible API. Per-provider streaming control.
 - **Middleware system** — 8 lifecycle hooks (beforeModel, afterToolUse, etc.). Planner and Skills are just middlewares.
-- **Skills** — Drop a markdown file in `skills/` → agent gets a new tool. No code needed.
+- **Skills system** — Drop a SKILL.md in `skills/<name>/` → agent loads it via middleware, injects into prompt. Explicit invocation via QuickCards or `/command` picker.
+- **Thread isolation** — Each thread has its own agent. Switching threads auto-aborts the previous one. Stream events filtered by threadId.
+- **Hot reload** — `DEV_MODE=1` watches `dist/renderer/` and auto-reloads the window (skipped during streaming).
 - **Worktree mode** — Run agent in an isolated git branch. Safe experimentation.
 
 ### Providers
@@ -100,7 +103,7 @@ pnpm run dev            # uses vite build --watch (not dev server)
 
 ### Download
 
-> [TinyCodex-1.0.0-arm64.dmg](https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/TinyCodex-1.0.0-arm64.dmg) (macOS Apple Silicon)
+> [Download latest DMG](https://github.com/venaissance/tiny-codex/releases/latest) (macOS Apple Silicon)
 
 ## Learn from the Source
 
@@ -209,14 +212,14 @@ src/
 ## Testing
 
 ```bash
-pnpm test                # 240+ unit/component/integration tests
+pnpm test                # 259 unit/component/integration tests
 npx playwright test      # E2E with mock LLM (no API key needed)
 ```
 
 | Category | Tests | What it covers |
 |----------|-------|---------------|
-| Unit | 130+ | Agent loop, tools, providers, stores, streaming events, planner middleware |
-| Component | 60+ | AgentProcess, MessageHistory, Sidebar, Preview, InputBox, SuggestionCards, FileExplorer |
+| Unit | 140+ | Agent loop, tools, providers, stores, streaming events, planner middleware |
+| Component | 70+ | AgentProcess, MessageHistory, Sidebar, Preview, InputBox, SuggestionCards, FileExplorer, AskUserCard |
 | Integration | 14 | ThreadManager, agent-tools, skills system |
 | E2E | 5 scenarios | Smoke test, streaming preview, full workflow |
 

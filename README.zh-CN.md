@@ -20,7 +20,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/license/venaissance/tiny-codex" alt="License" />
   <img src="https://img.shields.io/github/v/release/venaissance/tiny-codex" alt="Release" />
-  <img src="https://img.shields.io/badge/tests-240%2B%20passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-259%20passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/platform-macOS-blue" alt="Platform" />
 </p>
 
@@ -59,12 +59,13 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 
 ### 你能看到的
 
-- **实时流式预览** — Agent 写文件时右侧同步渲染（Markdown、HTML、代码、图片、PDF、CSV）
+- **实时流式预览** — Agent 写文件时右侧同步渲染（Markdown、HTML、代码、图片、PDF、CSV）。HTML 页面在生成过程中逐步构建可见。
+- **Skills + 快捷卡片** — 4 个内置技能（前端设计、技术写作、系统调试、图片生成），绑定到欢迎页卡片。点击即启动技能驱动的工作流。
+- **交互式 ask_user** — Agent 提问时弹出可点击的选项卡片。选择方向，然后看它开始构建。
 - **思考卡片** — 展开查看 AI 的实时推理过程
 - **任务规划** — Agent 先列出计划，再逐步执行打勾
-- **欢迎页** — 新建线程时显示快速开始卡片；未打开项目时禁用
-- **建议按钮** — 每次回复后自动生成可点击的后续操作（模型生成或正则提取）
-- **文件管理** — 树形目录、新建/重命名/删除文件、右键菜单
+- **建议按钮** — 每次回复后自动生成可点击的后续操作（模型通过 HTML 注释生成）
+- **文件管理** — 树形目录、新建/重命名/删除、拖拽移动、搜索、自动展开选中文件的父目录
 
 ### 底层能力
 
@@ -72,7 +73,9 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **流式管线** — SSE → rAF 批量合并 → Streamdown 渲染 → 自动滚动。不闪烁，不卡顿。
 - **多模型支持** — MiniMax、GLM、豆包、OpenAI — 任何 OpenAI 兼容 API。按 Provider 控制流式开关。
 - **中间件系统** — 8 个生命周期 hook（beforeModel、afterToolUse 等）。Planner 和 Skills 都只是中间件。
-- **Skills 扩展** — 在 `skills/` 放一个 Markdown 文件 → Agent 获得新工具。不需要写代码。
+- **Skills 系统** — 在 `skills/<name>/` 放一个 SKILL.md → Agent 通过中间件加载，注入到 prompt。通过快捷卡片或 `/command` 选择器显式调用。
+- **线程隔离** — 每个线程独立 Agent。切换线程自动终止前一个。流式事件按 threadId 过滤。
+- **热更新** — `DEV_MODE=1` 监听 `dist/renderer/` 变化自动刷新窗口（streaming 时跳过）。
 - **Worktree 模式** — 在隔离的 git 分支中运行 Agent。安全实验。
 
 ### 模型提供商
@@ -100,7 +103,7 @@ pnpm run dev            # 使用 vite build --watch（非 dev server）
 
 ### 下载
 
-> [TinyCodex-1.0.0-arm64.dmg](https://github.com/venaissance/tiny-codex/releases/download/v1.0.0/TinyCodex-1.0.0-arm64.dmg) (macOS Apple Silicon)
+> [下载最新版 DMG](https://github.com/venaissance/tiny-codex/releases/latest) (macOS Apple Silicon)
 
 ## 从源码学习
 
@@ -209,14 +212,14 @@ src/
 ## 测试
 
 ```bash
-pnpm test                # 240+ 单元/组件/集成测试
+pnpm test                # 259 单元/组件/集成测试
 npx playwright test      # E2E（Mock LLM，无需 API Key）
 ```
 
 | 类别 | 数量 | 覆盖范围 |
 |------|------|---------|
-| 单元测试 | 130+ | Agent 循环、工具、Provider、Store、流式事件、Planner 中间件 |
-| 组件测试 | 60+ | AgentProcess、MessageHistory、Sidebar、Preview、InputBox、SuggestionCards、FileExplorer |
+| 单元测试 | 140+ | Agent 循环、工具、Provider、Store、流式事件、Planner 中间件 |
+| 组件测试 | 70+ | AgentProcess、MessageHistory、Sidebar、Preview、InputBox、SuggestionCards、FileExplorer、AskUserCard |
 | 集成测试 | 14 | ThreadManager、Agent-Tools、Skills 系统 |
 | E2E | 5 个场景 | Smoke、流式预览、完整工作流 |
 
