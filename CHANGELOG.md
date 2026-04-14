@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/venaissance/tiny-codex/compare/v1.2.0...v1.2.1) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ci:** read version from package.json for DMG upload ([8cd35b6](https://github.com/venaissance/tiny-codex/commit/8cd35b62326c878e9c2f53b4a2aa3b1d6115658b))
+
 # [1.2.0](https://github.com/venaissance/tiny-codex/compare/v1.1.0...v1.2.0) (2026-04-14)
 
 
