@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/venaissance/tiny-codex/compare/v1.1.0...v1.2.0) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ci:** use Node 22 for semantic-release compatibility ([7f2e07e](https://github.com/venaissance/tiny-codex/commit/7f2e07e2d26d4b91bd8f379b3e276fc67000e2d0))
+
+
+### Features
+
+* skills system, ask_user UI, live preview, thread isolation ([ecf6e02](https://github.com/venaissance/tiny-codex/commit/ecf6e029a52c3bc178d2a6b0d4de3cc944036a0e))
+
 # Changelog
 
 ## [1.0.0] - 2026-04-13
