@@ -28,29 +28,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Tests
       - run: pnpm test
 
-      # Semantic Release — analyzes commits, bumps version, creates tag + GitHub Release
-      - name: Semantic Release
+      # semantic-release does everything:
+      # 1. Analyze commits → determine version bump
+      # 2. Update package.json + CHANGELOG.md
+      # 3. Build DMG (via @semantic-release/exec prepareCmd)
+      # 4. Create GitHub Release + upload DMG (via @semantic-release/github)
+      # 5. Commit version bump + push tag
+      - name: Release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Build DMG (uses version from package.json, updated by semantic-release)
-      - name: Build DMG
-        run: pnpm run release
-        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Upload DMG to the GitHub Release — read version from package.json
-      - name: Get version
-        id: version
-        run: echo "version=$(node -p 'require(\"./package.json\").version')" >> $GITHUB_OUTPUT
-
-      - name: Upload DMG
-        if: steps.version.outputs.version != '1.0.0'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          files: release/*.dmg
