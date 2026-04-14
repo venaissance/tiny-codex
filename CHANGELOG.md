@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/venaissance/tiny-codex/compare/v1.2.2...v1.2.3) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ci:** prevent electron-builder draft release, improve asset label ([cc2881c](https://github.com/venaissance/tiny-codex/commit/cc2881c46f6686419ea51169b362afa5253e4330))
+
 ## [1.2.2](https://github.com/venaissance/tiny-codex/compare/v1.2.1...v1.2.2) (2026-04-14)
 
 
