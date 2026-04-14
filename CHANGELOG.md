@@ -1,3 +1,10 @@
+## [1.2.2](https://github.com/venaissance/tiny-codex/compare/v1.2.1...v1.2.2) (2026-04-14)
+
+
+### Bug Fixes
+
+* **ci:** use semantic-release exec+github plugins for DMG upload ([751c4c2](https://github.com/venaissance/tiny-codex/commit/751c4c222214963f9830c36ef13363408bfcbd37))
+
 ## [1.2.1](https://github.com/venaissance/tiny-codex/compare/v1.2.0...v1.2.1) (2026-04-14)
 
 
