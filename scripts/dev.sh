@@ -1,8 +1,11 @@
 #!/bin/bash
-# Dev mode: build + watch for changes, then start Electron
-# Uses vite build --watch (NOT dev server) so Tailwind v4 fully compiles utility classes.
+# Dev mode with hot reload:
+# - vite build --watch: recompiles renderer on source change
+# - tsc --watch: recompiles main process on source change
+# - Electron main process watches dist/ and auto-reloads (DEV_MODE=1)
 
 set -e
+cd "$(dirname "$0")/.."
 
 # Initial build
 echo "[dev] Building renderer..."
@@ -18,12 +21,11 @@ VITE_PID=$!
 npx tsc --project tsconfig.main.json --watch 2>&1 | sed 's/^/[tsc] /' &
 TSC_PID=$!
 
-# Wait for watchers to initialize
 sleep 1
 
-# Start Electron (loads from dist/, not dev server)
-echo "[dev] Starting Electron..."
-npx electron dist/main/main/index.js &
+# Start Electron with dev mode flag — enables hot reload watcher inside main process
+echo "[dev] Starting Electron with hot reload..."
+DEV_MODE=1 npx electron dist/main/main/index.js &
 ELECTRON_PID=$!
 
 # Cleanup on exit

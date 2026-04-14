@@ -307,6 +307,33 @@ export function FileList({
     }
   }, [projectPath, refreshKey]);
 
+  // Auto-expand parent directories when a file inside them is selected
+  useEffect(() => {
+    if (!selectedFile || !projectPath) return;
+    // Check if selectedFile is inside a directory that isn't expanded
+    const relativePath = selectedFile.replace(projectPath + '/', '');
+    const parts = relativePath.split('/');
+    if (parts.length <= 1) return; // File is at root, no need to expand
+
+    // Expand each parent directory in the path
+    let currentPath = projectPath;
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentPath += '/' + parts[i];
+      const dirPath = currentPath;
+      const findNode = (nodes: TreeNode[]): TreeNode | undefined => {
+        for (const n of nodes) {
+          if (n.fullPath === dirPath) return n;
+          if (n.children) { const f = findNode(n.children); if (f) return f; }
+        }
+        return undefined;
+      };
+      const node = findNode(treeRef.current);
+      if (node && node.isDirectory && !node.expanded) {
+        toggleDir(dirPath);
+      }
+    }
+  }, [selectedFile, projectPath]);
+
   // Toggle expand/collapse directory
   const toggleDir = useCallback(async (targetPath: string) => {
     // Read current state from ref (never stale)

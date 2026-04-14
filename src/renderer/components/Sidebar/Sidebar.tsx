@@ -1,6 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { ThreadList } from './ThreadList';
-import { SkillList } from './SkillList';
+import { SkillList, type SkillInfo } from './SkillList';
 import { Collapsible } from './Collapsible';
 import { FileList } from './FileList';
 import { ProgressList, type ProgressStep } from './ProgressList';
@@ -8,11 +8,11 @@ import { ContextList, type ContextItem } from './ContextList';
 
 export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNewThread, onSkillClick, projectPath, progressSteps, contextItems, selectedFile, onSelectFile, fileRefreshKey }: {
   threads: Array<{ id: string; title: string; updatedAt: number }>;
-  skills: Array<{ name: string; icon: string }>;
+  skills: SkillInfo[];
   activeThreadId: string | null;
   onSelectThread: (id: string) => void;
   onNewThread: () => void;
-  onSkillClick?: (skill: { name: string; icon: string }) => void;
+  onSkillClick?: (skill: SkillInfo) => void;
   projectPath?: string | null;
   progressSteps?: ProgressStep[];
   contextItems?: ContextItem[];
@@ -52,12 +52,10 @@ export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNew
         <div className="sidebar-section-title">Threads</div>
         <ThreadList threads={threads} activeId={activeThreadId} onSelect={onSelectThread} />
       </div>
-      <div className="sidebar-section">
-        <div className="sidebar-section-title">Skills</div>
-        <SkillList skills={skills} onSelect={onSkillClick} />
-      </div>
 
-      <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
+      <Collapsible title="SKILLS" defaultOpen={true}>
+        <SkillList skills={skills} onSelect={onSkillClick} />
+      </Collapsible>
 
       <Collapsible title="FILES" defaultOpen={true}>
         <FileList projectPath={projectPath ?? null} selectedFile={selectedFile} onSelectFile={onSelectFile} refreshKey={fileRefreshKey} />

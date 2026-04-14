@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useCallback } from 'react';
 import { AgentProcess, AgentStateIndicator, type ProcessStep } from './AgentProcess';
 import { CopyButton } from './CopyButton';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { SuggestionCards, extractSuggestions } from './SuggestionCards';
+import { AskUserCard } from './AskUserCard';
+import { useThreadStore } from '../../stores/thread-store';
 
 interface Message {
   role: string;
@@ -137,10 +139,9 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
   const grouped = groupMessages(messages);
   const isStreaming = isStreamingProp;
   const containerRef = useRef<HTMLDivElement>(null);
+  const pendingQuestion = useThreadStore((s) => s.pendingQuestion);
 
-  // Auto-scroll to bottom when messages or streaming text changes
-  // During streaming: instant jump (smooth animation can't keep up with rapid updates)
-  // After streaming: smooth scroll for new messages
+  // Auto-scroll to bottom when messages, streaming text, or pending question changes
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -149,7 +150,7 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
     } else {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages.length, streamingText, isStreaming]);
+  }, [messages.length, streamingText, isStreaming, pendingQuestion]);
 
   return (
     <div className="chat-messages" ref={containerRef}>
@@ -169,6 +170,8 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
           )}
         </div>
       ))}
+      {/* Ask user card — rendered when agent is waiting for user input */}
+      <PendingQuestionCard />
       {/* Agent state indicator — shows between tool calls and during LLM thinking */}
       {isStreaming && <AgentStateIndicator />}
       {/* Streaming text — Streamdown handles animation + caret */}
@@ -183,6 +186,28 @@ export function MessageHistory({ messages, streamingText, isStreaming: isStreami
       {!isStreaming && onSuggestionSelect && <SuggestionCardsFromMessages messages={messages} onSelect={onSuggestionSelect} />}
     </div>
   );
+}
+
+const api = (window as any).api;
+
+/** Renders AskUserCard when agent is waiting for user input — only for the active thread */
+function PendingQuestionCard() {
+  const pending = useThreadStore((s) => s.pendingQuestion);
+  const activeThreadId = useThreadStore((s) => s.activeThreadId);
+  const setPending = useThreadStore((s) => s.setPendingQuestion);
+
+  const handleRespond = useCallback((threadId: string, response: string) => {
+    api?.respondToAskUser?.(threadId, response);
+    setPending(null);
+    // Reset state so AgentStateIndicator shows "Thinking..." while agent continues
+    const store = useThreadStore.getState();
+    store.resetStreamingText();
+    store.setAgentState('thinking', (store.agentStep || 0) + 1, null);
+  }, [setPending]);
+
+  // Only show if the question belongs to the currently viewed thread
+  if (!pending || pending.threadId !== activeThreadId) return null;
+  return <AskUserCard pending={pending} onRespond={handleRespond} />;
 }
 
 /** Extract suggestions from the last assistant message and tool history */

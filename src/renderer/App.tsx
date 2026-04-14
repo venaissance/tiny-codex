@@ -11,12 +11,9 @@ import { Welcome } from './components/Welcome/Welcome';
 import { useAgent } from './hooks/useAgent';
 import { useThread } from './hooks/useThread';
 
+import type { SkillInfo } from './components/Sidebar/SkillList';
+
 const MODELS = ['MiniMax-M2.7', 'glm-5.1'];
-const SKILLS = [
-  { name: 'Tech Writer', icon: '📝' },
-  { name: 'Code Review', icon: '🔍' },
-  { name: 'Image Gen', icon: '🎨' },
-];
 
 const api = (window as any).api;
 
@@ -25,16 +22,20 @@ export function App() {
   const { previewVisible, previewFile, projectPath, currentModel, mode, theme, togglePreview, setPreviewFile, setCurrentModel, setMode, setProjectPath, toggleTheme } = useUIStore();
   const { sendMessage, abortAgent } = useAgent();
   const { createThread, selectThread, deleteThread, openProject, commitChanges } = useThread();
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [previewContent, setPreviewContent] = useState('');
   const [fileRefreshKey, setFileRefreshKey] = useState(0);
   const [previewAnimated, setPreviewAnimated] = useState(false);
   // Guard: when true, live streaming preview is active — skip disk reads that would overwrite it
   const isLivePreviewingRef = useRef(false);
+  // Guard: when true, user manually selected a file — don't auto-switch to agent's file
+  const userSelectedFileRef = useRef(false);
 
   // Refresh file list when streaming ends OR when a tool writes a file
   useEffect(() => {
     if (!isStreaming) {
-      isLivePreviewingRef.current = false; // Streaming ended — safe to read from disk
+      isLivePreviewingRef.current = false;
+      userSelectedFileRef.current = false;
       setFileRefreshKey((k) => k + 1);
     }
   }, [isStreaming]);
@@ -54,10 +55,13 @@ export function App() {
 
     const flush = () => {
       rafId = null;
+      if (userSelectedFileRef.current) return;
       if (pendingContent) {
-        isLivePreviewingRef.current = true; // Protect from disk-read overwrite
-        if (pendingPath && useUIStore.getState().previewFile !== pendingPath) {
-          setPreviewFile(pendingPath);
+        isLivePreviewingRef.current = true;
+        // Set preview file from extracted path, or use a placeholder so content renders
+        const targetPath = pendingPath || useUIStore.getState().previewFile || '__generating__.html';
+        if (useUIStore.getState().previewFile !== targetPath) {
+          setPreviewFile(targetPath);
         }
         setPreviewContent(pendingContent);
         setPreviewAnimated(false);
@@ -82,20 +86,42 @@ export function App() {
   }, [togglePreview, setPreviewFile]);
 
   // Auto-preview file when agent finishes writing it (tool result confirmed — file exists on disk)
+  // Only auto-switch while streaming — don't hijack user's manual file selection after agent stops
   useEffect(() => {
     const handler = (e: Event) => {
       const filePath = (e as CustomEvent).detail as string;
-      if (filePath) {
-        isLivePreviewingRef.current = false; // File is on disk now, safe to read
+      if (!filePath) return;
+      isLivePreviewingRef.current = false; // File is on disk now, safe to read
+      setFileRefreshKey((k) => k + 1);
+      // Only auto-switch if streaming AND user hasn't manually selected a different file
+      if (useThreadStore.getState().isStreaming && !userSelectedFileRef.current) {
         setPreviewFile(filePath);
         setPreviewAnimated(false);
-        setFileRefreshKey((k) => k + 1);
         if (!useUIStore.getState().previewVisible) togglePreview();
       }
     };
     window.addEventListener('file-written', handler);
     return () => window.removeEventListener('file-written', handler);
   }, [setPreviewFile, togglePreview]);
+
+  // Listen for ask_user events from agent
+  useEffect(() => {
+    if (!api?.onAskUser) return;
+    const unsub = api.onAskUser((data: any) => {
+      useThreadStore.getState().setPendingQuestion({
+        threadId: data.threadId,
+        question: data.question,
+        options: data.options,
+      });
+    });
+    return unsub;
+  }, []);
+
+  // Load skills from project's skills/ directory
+  useEffect(() => {
+    if (!projectPath || !api?.listSkills) { setSkills([]); return; }
+    api.listSkills(projectPath).then((list: SkillInfo[]) => setSkills(list ?? [])).catch(() => setSkills([]));
+  }, [projectPath]);
 
   // Apply theme
   useEffect(() => {
@@ -128,27 +154,21 @@ export function App() {
   useEffect(() => {
     if (!previewFile) { setPreviewContent(''); return; }
     if (isLivePreviewingRef.current) return; // Don't overwrite live streaming preview
+    // Clear old content immediately so stale data doesn't show for the new file
+    setPreviewContent('');
     if (api?.readFile) {
       api.readFile(previewFile).then((content: string) => {
-        if (isLivePreviewingRef.current) return; // Re-check after async
-        if (content === 'Error: Cannot read file') {
-          // File was likely renamed/deleted — clear selection
-          setPreviewFile(null);
-          setPreviewContent('');
-        } else {
-          setPreviewContent(content || '');
-        }
-      }).catch(() => {
         if (isLivePreviewingRef.current) return;
-        setPreviewFile(null);
-        setPreviewContent('');
-      });
+        if (content) setPreviewContent(content);
+      }).catch(() => {});
     }
   }, [previewFile, fileRefreshKey, setPreviewFile]);
 
   const handleSelectFile = useCallback((filePath: string) => {
+    isLivePreviewingRef.current = false;
+    userSelectedFileRef.current = true; // Don't auto-switch back to agent's file
     setPreviewFile(filePath);
-    setPreviewAnimated(false); // manual selection = no animation
+    setPreviewAnimated(false);
     if (!useUIStore.getState().previewVisible) {
       togglePreview();
     }
@@ -156,6 +176,8 @@ export function App() {
 
   const activeThread = threads.find((t) => t.id === activeThreadId);
   const projectName = projectPath?.split('/').pop() ?? null;
+  // Convert SkillInfo to InputBox format
+  const inputSkills = useMemo(() => skills.map((s) => ({ name: s.name, icon: '' })), [skills]);
 
   // Track completed steps across the current streaming session
   const completedStepsRef = useRef<Array<{ step: number; label: string }>>([]);
@@ -251,7 +273,7 @@ export function App() {
     }));
   }, [messages]);
 
-  const handleSend = useCallback((text: string, skills: Array<{ name: string; icon: string }>) => {
+  const handleSend = useCallback((text: string, _skills: Array<{ name: string; icon: string }>) => {
     if (!activeThreadId) {
       const threadId = createThread(text.slice(0, 50));
       if (threadId) sendMessage(threadId, text);
@@ -260,9 +282,9 @@ export function App() {
     }
   }, [activeThreadId, createThread, sendMessage]);
 
-  const handleQuickAction = useCallback((text: string) => {
+  const handleQuickAction = useCallback((text: string, skillName?: string) => {
     const threadId = createThread(text);
-    if (threadId) sendMessage(threadId, text);
+    if (threadId) sendMessage(threadId, text, skillName);
   }, [createThread, sendMessage]);
 
   return (
@@ -278,13 +300,13 @@ export function App() {
       <div className="app-body">
         <Sidebar
           threads={threads.map((t) => ({ id: t.id, title: t.title, updatedAt: t.updatedAt }))}
-          skills={SKILLS}
+          skills={skills}
           activeThreadId={activeThreadId}
           onSelectThread={selectThread}
           onNewThread={() => createThread()}
           onSkillClick={(skill) => {
             if (!activeThreadId) createThread();
-            window.dispatchEvent(new CustomEvent('add-skill-tag', { detail: skill }));
+            window.dispatchEvent(new CustomEvent('add-skill-tag', { detail: { name: skill.name, icon: '' } }));
           }}
           projectPath={projectPath}
           progressSteps={progressSteps}
@@ -299,7 +321,7 @@ export function App() {
               onSend={handleSend}
               onAbort={() => activeThreadId && abortAgent(activeThreadId)}
               isStreaming={isStreaming}
-              skills={SKILLS}
+              skills={inputSkills}
               models={MODELS}
               currentModel={currentModel}
               onModelChange={setCurrentModel}
@@ -314,7 +336,7 @@ export function App() {
             <InputBox
               onSend={handleSend}
               isStreaming={isStreaming}
-              skills={SKILLS}
+              skills={inputSkills}
               models={MODELS}
               currentModel={currentModel}
               onModelChange={setCurrentModel}

@@ -17,8 +17,8 @@ describe('HtmlView', () => {
     const { HtmlView } = await import('@/renderer/components/PreviewPanel/HtmlView');
     const { container } = render(<HtmlView file="/path/to/test.html" />);
 
-    // Initially loading
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    // Initially no content
+    expect(screen.getByText('No file selected')).toBeInTheDocument();
 
     // Wait for readFile to resolve
     await vi.waitFor(() => {

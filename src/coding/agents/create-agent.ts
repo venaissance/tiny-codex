@@ -20,7 +20,7 @@ export interface CodingAgentOptions {
   historyMessages?: NonSystemMessage[];
 }
 
-export async function createCodingAgent(options: CodingAgentOptions): Promise<Agent> {
+export async function createCodingAgent(options: CodingAgentOptions): Promise<{ agent: Agent; skillsController: ReturnType<typeof createSkillsMiddleware> }> {
   const cwd = options.cwd ?? process.cwd();
   const skillsDirs = options.skillsDirs ?? [join(cwd, 'skills')];
   const messages: NonSystemMessage[] = [];
@@ -38,9 +38,12 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<Ag
     messages.push(...options.historyMessages);
   }
 
+  const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }); // YYYY-MM-DD Beijing time
+
   const prompt = `<agent name="tiny-codex" role="coding_assistant">
 You are a coding assistant. Use the provided tools to read, write, and modify files.
 Work in the project directory: ${cwd}
+Today's date: ${today}
 
 IMPORTANT: At the end of EVERY response, generate 2-3 short follow-up actions the user might want next. Output them as an HTML comment in this exact format:
 <!-- suggestions: ["action 1", "action 2", "action 3"] -->
@@ -50,17 +53,21 @@ The suggestions must be context-aware, specific, and actionable (not generic). E
 - After fixing a bug: ["Run tests to verify", "Check for similar issues", "Add regression test"]
 </agent>`;
 
-  return new Agent({
+  const skillsController = createSkillsMiddleware(skillsDirs);
+
+  const agent = new Agent({
     model: options.model,
     prompt,
     messages,
     tools: standardTools,
     middlewares: [
-      createSkillsMiddleware(skillsDirs),
+      skillsController.middleware,
       ...(options.onPlanUpdate ? [new PlannerMiddleware({ onPlanUpdate: options.onPlanUpdate })] : []),
     ],
     maxSteps: options.maxSteps ?? 100,
     threadId: options.threadId,
     onStateChange: options.onStateChange,
   });
+
+  return { agent, skillsController };
 }

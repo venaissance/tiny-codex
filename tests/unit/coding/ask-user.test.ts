@@ -9,11 +9,34 @@ describe('ask_user tool', () => {
   });
 
   it('uses custom handler when set', async () => {
-    setAskUserHandler(async (q) => `User answered: blue to "${q}"`);
+    setAskUserHandler(async ({ question }) => `User answered: blue to "${question}"`);
     const result = await askUserTool.invoke({ question: 'What color?' });
     expect(result).toBe('User answered: blue to "What color?"');
 
     // Reset
-    setAskUserHandler(async (q) => `[No UI available] Question was: ${q}`);
+    setAskUserHandler(async ({ question }) => `[No UI available] Question was: ${question}`);
+  });
+
+  it('passes options to handler', async () => {
+    let receivedOptions: any;
+    setAskUserHandler(async ({ question, options }) => {
+      receivedOptions = options;
+      return options?.[0]?.value ?? question;
+    });
+
+    const result = await askUserTool.invoke({
+      question: 'Pick a direction',
+      options: [
+        { label: 'Option A', value: 'a' },
+        { label: 'Option B', value: 'b' },
+      ],
+    });
+
+    expect(result).toBe('a');
+    expect(receivedOptions).toHaveLength(2);
+    expect(receivedOptions[0]).toEqual({ label: 'Option A', value: 'a' });
+
+    // Reset
+    setAskUserHandler(async ({ question }) => `[No UI available] Question was: ${question}`);
   });
 });

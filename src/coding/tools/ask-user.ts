@@ -1,9 +1,14 @@
 import { defineTool } from '../../foundation/tools';
 import { z } from 'zod';
 
-export type AskUserHandler = (question: string) => Promise<string>;
+export interface AskUserQuestion {
+  question: string;
+  options?: Array<{ label: string; value: string }>;
+}
 
-let askUserHandler: AskUserHandler = async (question) => {
+export type AskUserHandler = (q: AskUserQuestion) => Promise<string>;
+
+let askUserHandler: AskUserHandler = async ({ question }) => {
   return `[No UI available] Question was: ${question}`;
 };
 
@@ -13,11 +18,15 @@ export function setAskUserHandler(handler: AskUserHandler): void {
 
 export const askUserTool = defineTool({
   name: 'ask_user',
-  description: 'Ask the user a question and wait for their response.',
+  description: 'Ask the user a question and wait for their response. Optionally provide selectable options.',
   parameters: z.object({
-    question: z.string().describe('The question to ask the user'),
+    question: z.string().describe('The question to ask the user (supports markdown)'),
+    options: z.array(z.object({
+      label: z.string().describe('Display text for this option'),
+      value: z.string().describe('Value returned when user selects this option'),
+    })).optional().describe('Clickable options for the user to choose from'),
   }),
-  invoke: async ({ question }) => {
-    return askUserHandler(question);
+  invoke: async ({ question, options }) => {
+    return askUserHandler({ question, options });
   },
 });

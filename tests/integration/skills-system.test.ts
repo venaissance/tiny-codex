@@ -18,10 +18,11 @@ describe('Skills System Integration', () => {
       content: [{ type: 'text', text: 'I see the skills available.' }],
     }]);
     const model = new Model('test', provider);
+    const { middleware } = createSkillsMiddleware([skillsDir]);
     const agent = new Agent({
       model,
       prompt: 'You are helpful.',
-      middlewares: [createSkillsMiddleware([skillsDir])],
+      middlewares: [middleware],
     });
 
     for await (const _ of agent.stream(createUserMessage('hi'))) {}

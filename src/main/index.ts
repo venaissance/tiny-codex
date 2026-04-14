@@ -1,7 +1,11 @@
 import { config } from 'dotenv';
 import { resolve } from 'path';
+
+// App root = project root (works in both dev and packaged builds)
+const APP_ROOT = resolve(__dirname, '../../..');
+
 // Load .env from project root before anything else
-config({ path: resolve(__dirname, '../../..', '.env') });
+config({ path: resolve(APP_ROOT, '.env') });
 
 import { app, BrowserWindow } from 'electron';
 import { join } from 'path';
@@ -90,20 +94,43 @@ app.whenReady().then(async () => {
     console.warn('[tiny-codex] No API keys found! Set MINIMAX_API_KEY, GLM_API_KEY, or OPENAI_API_KEY in your shell env.');
   }
 
-  const threadManager = new ThreadManager(db, providers);
+  const threadManager = new ThreadManager(db, providers, APP_ROOT);
 
-  registerIpcHandlers(threadManager, () => mainWindow);
+  registerIpcHandlers(threadManager, () => mainWindow, APP_ROOT);
 
   mainWindow = createMainWindow();
   mainWindow.on('closed', () => { mainWindow = null; });
 
   // Default project: e2e_test_folder (if it exists)
-  const defaultProject = join(__dirname, '../../..', 'e2e_test_folder');
+  const defaultProject = join(APP_ROOT, 'e2e_test_folder');
   const fs = require('fs');
   if (fs.existsSync(defaultProject)) {
     mainWindow.webContents.on('did-finish-load', () => {
       mainWindow?.webContents.send('set-project-path', defaultProject);
     });
+  }
+
+  // Dev mode hot reload: watch dist/ for changes
+  // Only reload renderer (safe). Main process changes require manual restart.
+  if (process.env.DEV_MODE === '1') {
+    const { watch } = require('chokidar');
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Renderer changes → reload BrowserWindow (safe, doesn't interrupt agent)
+    watch(join(APP_ROOT, 'dist/renderer'), { ignoreInitial: true }).on('all', () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => {
+        // Skip reload if agent is streaming — would kill the live connection
+        if (threadManager.isAnyAgentStreaming()) {
+          console.log('[hot-reload] Skipped — agent is streaming. Cmd+R to reload manually.');
+          return;
+        }
+        console.log('[hot-reload] Renderer changed, reloading window...');
+        mainWindow?.webContents.reload();
+      }, 500);
+    });
+
+    console.log('[hot-reload] Watching dist/renderer/ for changes (main requires restart)...');
   }
 });
 

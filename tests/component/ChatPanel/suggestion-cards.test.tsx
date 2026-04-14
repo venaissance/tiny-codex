@@ -51,10 +51,10 @@ describe('extractSuggestions', () => {
     extractSuggestions = mod.extractSuggestions;
   });
 
-  it('extracts questions from text', () => {
+  it('only extracts from HTML comment, not from body text', () => {
     const text = 'Would you like me to:\n1. Add images?\n2. Write another one?';
     const result = extractSuggestions(text, []);
-    expect(result.length).toBeGreaterThan(0);
+    expect(result).toEqual([]);
   });
 
   it('extracts suggestions from HTML comment', () => {

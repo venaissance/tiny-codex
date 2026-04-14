@@ -7,6 +7,13 @@ const api = (window as any).api;
 
 export function useThread() {
   const createThread = useCallback((title?: string) => {
+    const store = useThreadStore.getState();
+
+    // Abort any running agent before creating a new thread
+    if (store.isStreaming && store.streamingThreadId) {
+      api?.abortAgent?.(store.streamingThreadId);
+    }
+
     const id = randomUUID();
     const projectPath = useUIStore.getState().projectPath || '';
     const thread = {
@@ -20,12 +27,14 @@ export function useThread() {
     };
 
     // Add to local store immediately
-    useThreadStore.getState().addThread(thread);
-    useThreadStore.getState().setActiveThread(id);
-    useThreadStore.getState().setMessages([]);
-    useThreadStore.getState().resetStreamingText();
-    useThreadStore.getState().setStreaming(false);
-    useThreadStore.getState().setAgentState('idle');
+    store.addThread(thread);
+    store.setActiveThread(id);
+    store.setMessages([]);
+    store.resetStreamingText();
+    store.setStreaming(false);
+    store.setStreamingThreadId(null);
+    store.setPendingQuestion(null);
+    store.setAgentState('idle');
 
     // Sync to main process DB (must succeed before agent can use the thread)
     if (api?.createThread) {
@@ -42,10 +51,19 @@ export function useThread() {
   }, []);
 
   const selectThread = useCallback(async (id: string) => {
-    useThreadStore.getState().setActiveThread(id);
-    useThreadStore.getState().resetStreamingText();
-    useThreadStore.getState().setStreaming(false);
-    useThreadStore.getState().setAgentState('idle');
+    const store = useThreadStore.getState();
+
+    // Abort any running agent when switching threads
+    if (store.isStreaming && store.streamingThreadId && store.streamingThreadId !== id) {
+      api?.abortAgent?.(store.streamingThreadId);
+    }
+
+    store.setActiveThread(id);
+    store.resetStreamingText();
+    store.setStreaming(false);
+    store.setStreamingThreadId(null);
+    store.setPendingQuestion(null);
+    store.setAgentState('idle');
     if (api?.getMessages) {
       try {
         const messages = await api.getMessages(id);

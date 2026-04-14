@@ -6,7 +6,7 @@ export { globTool } from './glob';
 export { grepTool } from './grep';
 export { listDirTool } from './list-dir';
 export { askUserTool, setAskUserHandler } from './ask-user';
-export type { AskUserHandler } from './ask-user';
+export type { AskUserHandler, AskUserQuestion } from './ask-user';
 
 import { bashTool } from './bash';
 import { readFileTool } from './read-file';

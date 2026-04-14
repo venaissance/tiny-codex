@@ -18,4 +18,7 @@ export const IPC = {
   FILE_DELETE: 'file:deleteFile',
   FILE_RENAME: 'file:renameFile',
   GIT_DIFF_STATS: 'git:diffStats',
+  SKILL_LIST: 'skill:list',
+  AGENT_ASK_USER: 'agent:askUser',
+  AGENT_ASK_USER_RESPOND: 'agent:askUserRespond',
 } as const;

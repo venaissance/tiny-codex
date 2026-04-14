@@ -12,21 +12,24 @@ type Tab = 'preview' | 'code' | 'diff' | 'markdown' | 'image' | 'pdf' | 'csv' | 
 function detectTab(file: string | null): Tab {
   if (!file) return 'preview';
   const ext = file.split('.').pop()?.toLowerCase() ?? '';
-  if (ext === 'md') return 'markdown';
+  if (ext === 'md') return 'preview'; // handled by smart preview
   if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'].includes(ext)) return 'image';
   if (ext === 'pdf') return 'pdf';
   if (ext === 'csv') return 'csv';
   if (ext === 'json') return 'json';
-  if (ext === 'html' || ext === 'htm') return 'html';
+  if (ext === 'html' || ext === 'htm') return 'preview'; // handled by smart preview
   return 'code';
 }
 
-export function PreviewPanel({ file, content, originalContent, animated = false }: {
+export function PreviewPanel({ file, content: rawContent, originalContent, animated = false }: {
   file: string | null;
   content: string;
   originalContent?: string;
   animated?: boolean;
 }) {
+  // Sanitize: never display error strings as content
+  const content = rawContent.startsWith('Error:') ? '' : rawContent;
+
   const panelRef = useRef<HTMLDivElement>(null);
   const autoTab = useMemo(() => detectTab(file), [file]);
   const [activeTab, setActiveTab] = React.useState<Tab>(autoTab);
@@ -85,7 +88,8 @@ export function PreviewPanel({ file, content, originalContent, animated = false 
         ))}
       </div>
       <div className="preview-body">
-        {activeTab === 'code' && file && <MonacoView file={file} content={content} />}
+        {activeTab === 'code' && file && !content.startsWith('Error:') && <MonacoView file={file} content={content} />}
+        {activeTab === 'code' && (!file || content.startsWith('Error:')) && <div className="preview-empty">No file selected</div>}
         {activeTab === 'diff' && file && originalContent && (
           <DiffView file={file} original={originalContent} modified={content} />
         )}
@@ -96,7 +100,7 @@ export function PreviewPanel({ file, content, originalContent, animated = false 
         {activeTab === 'json' && <CsvJsonView type="json" content={content} />}
         {activeTab === 'html' && file && <HtmlView file={file} />}
         {activeTab === 'preview' && (
-          file ? (
+          file && content && !content.startsWith('Error:') ? (
             // Smart preview: render based on file type
             (() => {
               const ext = file.split('.').pop()?.toLowerCase() ?? '';

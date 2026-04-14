@@ -5,17 +5,26 @@ import { useUIStore } from '../stores/ui-store';
 const api = (window as any).api;
 
 export function useAgent() {
-  const sendMessage = useCallback(async (threadId: string, text: string) => {
-    useThreadStore.getState().setStreaming(true);
-    useThreadStore.getState().resetStreamingText();
-    useThreadStore.getState().resetStreamingThinking();
-    useThreadStore.getState().setPlanItems([]);
-    useThreadStore.getState().setAgentState('thinking', 1, null);
-    useThreadStore.getState().appendMessage({ role: 'user', content: [{ type: 'text', text }] });
+  const sendMessage = useCallback(async (threadId: string, text: string, skillName?: string) => {
+    const store = useThreadStore.getState();
+
+    // Abort any running agent before starting a new one
+    if (store.isStreaming && store.activeThreadId && store.activeThreadId !== threadId) {
+      api?.abortAgent?.(store.activeThreadId);
+    }
+
+    store.setStreaming(true);
+    store.setStreamingThreadId(threadId);
+    store.resetStreamingText();
+    store.resetStreamingThinking();
+    store.setPlanItems([]);
+    store.setPendingQuestion(null);
+    store.setAgentState('thinking', 1, null);
+    store.appendMessage({ role: 'user', content: [{ type: 'text', text }] });
 
     if (api?.sendMessage) {
       try {
-        await api.sendMessage(threadId, text);
+        await api.sendMessage(threadId, text, skillName);
       } catch (err: any) {
         console.error('Agent error:', err);
         useThreadStore.getState().setStreaming(false);
@@ -62,6 +71,9 @@ export function useAgent() {
       };
 
       const unsub = api.onStreamDelta((data: any) => {
+        // Ignore events from a different thread
+        if (data.threadId !== useThreadStore.getState().streamingThreadId) return;
+
         const event = data.event;
         if (event.type === 'text_delta') {
           pendingText += event.text;
@@ -81,7 +93,9 @@ export function useAgent() {
           toolJsonAccumulator = '';
           extractedContent = '';
           contentFieldStarted = false;
-          // Show tool name in indicator right away (before agent loop transitions)
+          // Clear streaming text so AgentStateIndicator can show the tool name
+          if (pendingText) { pendingText = ''; }
+          useThreadStore.getState().resetStreamingText();
           useThreadStore.getState().setAgentState('tool_calling', undefined, event.name);
         }
 
@@ -145,6 +159,9 @@ export function useAgent() {
 
     if (api.onStreamChunk) {
       const unsub = api.onStreamChunk((chunk: any) => {
+        // Ignore chunks from a different thread
+        if (chunk.threadId && chunk.threadId !== useThreadStore.getState().streamingThreadId) return;
+
         const msg = chunk.message;
         useThreadStore.setState((s) => ({
           streamingText: '',
@@ -190,11 +207,13 @@ export function useAgent() {
     }
 
     if (api.onStreamEnd) {
-      const unsub = api.onStreamEnd(() => {
+      const unsub = api.onStreamEnd((threadId: string) => {
+        // Ignore end events from a different thread (aborted thread finishing)
+        if (threadId && threadId !== useThreadStore.getState().streamingThreadId) return;
         // Cancel any pending rAF flush
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         pendingText = '';
-        useThreadStore.setState({ streamingText: '', streamingThinking: '', isStreaming: false, agentState: 'idle' as const, agentToolName: null });
+        useThreadStore.setState({ streamingText: '', streamingThinking: '', isStreaming: false, streamingThreadId: null, agentState: 'idle' as const, agentToolName: null });
       });
       if (unsub) cleanups.push(unsub);
     }
@@ -217,6 +236,7 @@ export function useAgent() {
     // Agent state change (thinking/tool_calling/reflecting/completed)
     if (api.onStateChange) {
       const unsub = api.onStateChange((event: any) => {
+        if (event.threadId && event.threadId !== useThreadStore.getState().streamingThreadId) return;
         useThreadStore.getState().setAgentState(
           event.state,
           event.step,
@@ -229,6 +249,7 @@ export function useAgent() {
     // Agent plan update (from PlannerMiddleware)
     if (api.onPlanUpdate) {
       const unsub = api.onPlanUpdate((data: any) => {
+        if (data.threadId && data.threadId !== useThreadStore.getState().streamingThreadId) return;
         useThreadStore.getState().setPlanItems(data.items);
       });
       if (unsub) cleanups.push(unsub);

@@ -4,6 +4,7 @@ import { readFile } from 'fs/promises';
 export interface SkillFrontmatter {
   name: string;
   description: string;
+  path: string;
   tools?: Array<{ name: string; description: string }>;
 }
 
@@ -14,6 +15,7 @@ export async function readSkillFrontMatter(filePath: string): Promise<SkillFront
     return {
       name: data.name ?? 'unknown',
       description: data.description ?? '',
+      path: filePath,
       tools: data.tools,
     };
   } catch {

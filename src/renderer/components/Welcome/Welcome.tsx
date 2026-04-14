@@ -2,7 +2,7 @@ import React from 'react';
 import { QuickCards } from './QuickCards';
 
 export function Welcome({ onQuickAction, onOpenProject, projectPath }: {
-  onQuickAction: (text: string) => void;
+  onQuickAction: (text: string, skillName: string) => void;
   onOpenProject?: () => void;
   projectPath?: string | null;
 }) {

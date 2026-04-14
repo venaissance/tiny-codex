@@ -15,6 +15,7 @@ const defaultState = {
   isStreaming: false,
   streamingText: '',
   streamingThinking: '',
+  pendingQuestion: null,
 };
 
 vi.mock('@/renderer/stores/thread-store', () => ({

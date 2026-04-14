@@ -40,8 +40,12 @@ function AgentStateIndicator() {
     }
   }, [thinkingText, expanded]);
 
+  const hasPendingQuestion = useThreadStore((s) => s.pendingQuestion !== null);
+
   // Show whenever streaming and no text output yet (i.e., waiting for LLM or running tools)
   if (!isStreaming) return null;
+  // Hide when AskUserCard is showing — it already indicates waiting state
+  if (hasPendingQuestion) return null;
   // Hide once LLM starts outputting text
   if (streamingText) return null;
 

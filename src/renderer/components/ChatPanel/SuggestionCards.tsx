@@ -9,8 +9,8 @@ import React from 'react';
 export function extractSuggestions(text: string, _toolNames: string[]): string[] {
   if (text.length < 20) return [];
 
-  // 1. Model-generated suggestions via HTML comment (preferred)
-  //    Format: <!-- suggestions: ["action 1", "action 2", "action 3"] -->
+  // Model-generated suggestions via HTML comment
+  // Format: <!-- suggestions: ["action 1", "action 2", "action 3"] -->
   const commentMatch = text.match(/<!--\s*suggestions:\s*(\[[\s\S]*?\])\s*-->/);
   if (commentMatch) {
     try {
@@ -18,28 +18,10 @@ export function extractSuggestions(text: string, _toolNames: string[]): string[]
       if (Array.isArray(parsed) && parsed.length > 0) {
         return parsed.filter((s: unknown) => typeof s === 'string' && s.length > 2).slice(0, 3);
       }
-    } catch { /* fall through to regex extraction */ }
+    } catch { /* malformed JSON — no suggestions */ }
   }
 
-  // 2. Fallback: extract list items after a question prompt
-  const suggestions: string[] = [];
-  const promptListPattern = /(?:Would you like|Do you want|Should I|Shall I|Want me to|你想|需要我|要不要|是否|还需要|如果需要|比如|例如|可以考虑)[^]*$/gi;
-  const promptMatch = text.match(promptListPattern);
-  if (promptMatch) {
-    const block = promptMatch[0];
-    const items = block.match(/(?:^|\n)\s*(?:\d+[\.\)]\s*|[-*•]\s*).+/g);
-    if (items) {
-      for (const item of items) {
-        let clean = item.replace(/^\s*(?:\d+[\.\)]\s*|[-*•]\s*)/, '').trim();
-        clean = clean.replace(/\*\*/g, '');
-        clean = clean.replace(/\s*[（(][^)）]*[)）]\s*/g, ' ').trim();
-        clean = clean.replace(/[？?。.!]$/, '').trim();
-        if (clean.length > 2 && clean.length < 80) suggestions.push(clean);
-      }
-    }
-  }
-
-  return suggestions.slice(0, 3);
+  return [];
 }
 
 export function SuggestionCards({ suggestions, onSelect, isStreaming = false }: {

@@ -264,11 +264,11 @@ describe('registerIpcHandlers', () => {
     expect(result).toBe('file contents here');
   });
 
-  it('file:readFile error → returns error string', async () => {
+  it('file:readFile error → returns empty string', async () => {
     mockReadFile.mockRejectedValue(new Error('ENOENT'));
 
     const result = await handlers.get('file:readFile')!(mockEvent, '/nope');
-    expect(result).toBe('Error: Cannot read file');
+    expect(result).toBe('');
   });
 
   it('file:listFiles → returns sorted entries (dirs first, then alpha)', async () => {

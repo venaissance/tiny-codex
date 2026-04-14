@@ -17,9 +17,16 @@ export interface ThreadMessage {
   content: Array<{ type: string; [key: string]: any }>;
 }
 
+export interface PendingQuestion {
+  threadId: string;
+  question: string;
+  options?: Array<{ label: string; value: string }>;
+}
+
 interface ThreadState {
   threads: Thread[];
   activeThreadId: string | null;
+  streamingThreadId: string | null;
   messages: ThreadMessage[];
   isStreaming: boolean;
   streamingText: string;
@@ -28,6 +35,7 @@ interface ThreadState {
   agentStep: number;
   agentToolName: string | null;
   planItems: Array<{ id: number; task: string; status: 'pending' | 'running' | 'done' }>;
+  pendingQuestion: PendingQuestion | null;
   addThread: (thread: Thread) => void;
   removeThread: (id: string) => void;
   setActiveThread: (id: string | null) => void;
@@ -35,17 +43,20 @@ interface ThreadState {
   setMessages: (messages: ThreadMessage[]) => void;
   appendMessage: (message: ThreadMessage) => void;
   setStreaming: (streaming: boolean) => void;
+  setStreamingThreadId: (id: string | null) => void;
   appendStreamingText: (delta: string) => void;
   resetStreamingText: () => void;
   appendStreamingThinking: (delta: string) => void;
   resetStreamingThinking: () => void;
   setPlanItems: (items: Array<{ id: number; task: string; status: 'pending' | 'running' | 'done' }>) => void;
   setAgentState: (state: AgentStepState, step?: number, toolName?: string | null) => void;
+  setPendingQuestion: (q: PendingQuestion | null) => void;
 }
 
 export const useThreadStore = create<ThreadState>((set) => ({
   threads: [],
   activeThreadId: null,
+  streamingThreadId: null,
   messages: [],
   isStreaming: false,
   streamingText: '',
@@ -54,6 +65,7 @@ export const useThreadStore = create<ThreadState>((set) => ({
   agentStep: 0,
   agentToolName: null,
   planItems: [],
+  pendingQuestion: null,
   addThread: (thread) => set((s) => ({ threads: [...s.threads, thread] })),
   removeThread: (id) => set((s) => ({
     threads: s.threads.filter((t) => t.id !== id),
@@ -64,11 +76,13 @@ export const useThreadStore = create<ThreadState>((set) => ({
   setMessages: (messages) => set({ messages }),
   appendMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
   setStreaming: (isStreaming) => set({ isStreaming }),
+  setStreamingThreadId: (streamingThreadId) => set({ streamingThreadId }),
   appendStreamingText: (delta) => set((s) => ({ streamingText: s.streamingText + delta })),
   resetStreamingText: () => set({ streamingText: '' }),
   appendStreamingThinking: (delta) => set((s) => ({ streamingThinking: s.streamingThinking + delta })),
   resetStreamingThinking: () => set({ streamingThinking: '' }),
   setPlanItems: (planItems) => set({ planItems }),
+  setPendingQuestion: (pendingQuestion) => set({ pendingQuestion }),
   setAgentState: (agentState, step, toolName) => set({
     agentState,
     ...(step !== undefined ? { agentStep: step } : {}),

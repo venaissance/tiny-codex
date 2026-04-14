@@ -3,10 +3,13 @@ import { IPC } from '../../shared/ipc-channels';
 import type { ThreadManager } from '../thread-manager';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { readdir } from 'fs/promises';
+import { join } from 'path';
+import { readSkillFrontMatter } from '../../agent/skills/skill-reader';
 
 const execAsync = promisify(exec);
 
-export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () => BrowserWindow | null): void {
+export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () => BrowserWindow | null, appRoot: string): void {
   // Thread handlers
   ipcMain.handle(IPC.THREAD_CREATE, async (_event, params) => {
     return threadManager.createThread(params);
@@ -48,12 +51,12 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
     }
   };
 
-  ipcMain.handle(IPC.AGENT_SEND_MESSAGE, async (_event, threadId: string, text: string) => {
+  ipcMain.handle(IPC.AGENT_SEND_MESSAGE, async (_event, threadId: string, text: string, skillName?: string) => {
     const win = getWindow();
     if (!win) return;
 
     try {
-      for await (const msg of threadManager.sendMessage(threadId, text)) {
+      for await (const msg of threadManager.sendMessage(threadId, text, skillName)) {
         win.webContents.send(IPC.AGENT_STREAM_CHUNK, { threadId, message: msg });
       }
       win.webContents.send(IPC.AGENT_STREAM_END, threadId);
@@ -90,7 +93,7 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
     try {
       return await fs.readFile(filePath, 'utf-8');
     } catch {
-      return 'Error: Cannot read file';
+      return '';  // File doesn't exist or can't be read — return empty, never error string
     }
   });
 
@@ -132,6 +135,44 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
     const fs = await import('fs/promises');
     await fs.rename(oldPath, newPath);
     return { success: true };
+  });
+
+  // Ask user — forward question to renderer
+  threadManager.onAskUser = (threadId, question) => {
+    const win = getWindow();
+    if (win) {
+      win.webContents.send(IPC.AGENT_ASK_USER, { threadId, ...question });
+    }
+  };
+
+  // Ask user — receive response from renderer
+  ipcMain.handle(IPC.AGENT_ASK_USER_RESPOND, async (_event, threadId: string, response: string) => {
+    threadManager.respondToAskUser(threadId, response);
+  });
+
+  ipcMain.handle(IPC.SKILL_LIST, async (_event, projectPath: string) => {
+    // Scan both app's built-in skills AND the opened project's skills
+    const appSkillsDir = join(appRoot, 'skills');
+    const skillsDirs = [appSkillsDir, join(projectPath, 'skills')];
+    const skills: Array<{ name: string; description: string; path: string }> = [];
+    const seen = new Set<string>();
+    for (const dir of skillsDirs) {
+      try {
+        const entries = await readdir(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          const skillPath = join(dir, entry.name, 'SKILL.md');
+          const fm = await readSkillFrontMatter(skillPath);
+          if (fm && !seen.has(fm.name)) {
+            seen.add(fm.name);
+            skills.push({ name: fm.name, description: fm.description, path: skillPath });
+          }
+        }
+      } catch {
+        // skills dir doesn't exist — fine
+      }
+    }
+    return skills;
   });
 
   ipcMain.handle(IPC.GIT_DIFF_STATS, async () => {
