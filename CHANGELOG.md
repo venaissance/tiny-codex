@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/venaissance/tiny-codex/compare/v1.2.3...v1.3.0) (2026-04-21)
+
+
+### Features
+
+* **ask_user:** add 5-min timeout with tiered safe-default fallback ([dcad222](https://github.com/venaissance/tiny-codex/commit/dcad22270f22c7788b1e7733fc4082b5cb5aaf32))
+
 ## [1.2.3](https://github.com/venaissance/tiny-codex/compare/v1.2.2...v1.2.3) (2026-04-14)
 
 
