@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 export interface AskUserQuestion {
   question: string;
-  options?: Array<{ label: string; value: string }>;
+  options?: Array<{ label: string; value: string; isSafeDefault?: boolean }>;
 }
 
 export type AskUserHandler = (q: AskUserQuestion) => Promise<string>;
@@ -24,6 +24,7 @@ export const askUserTool = defineTool({
     options: z.array(z.object({
       label: z.string().describe('Display text for this option'),
       value: z.string().describe('Value returned when user selects this option'),
+      isSafeDefault: z.boolean().optional().describe('If true, this option is auto-selected on 5-minute timeout. Mark the least destructive / most conservative option.'),
     })).optional().describe('Clickable options for the user to choose from'),
   }),
   invoke: async ({ question, options }) => {

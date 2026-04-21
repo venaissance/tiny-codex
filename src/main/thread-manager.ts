@@ -11,14 +11,85 @@ import type { AgentStateEvent, Trajectory } from '../agent/trajectory';
 import type { AskUserQuestion } from '../coding/tools/ask-user';
 import { setAskUserHandler } from '../coding/tools';
 
+const ASK_USER_TIMEOUT_MS = 5 * 60 * 1000;
+const ASK_USER_UNRESPONSIVE_RESPONSE =
+  '[User is unresponsive this session. Proceed with best judgment without blocking on user input. Do not invoke ask_user again until the user sends a new message.]';
+
+// Destructive verbs — any option matching these cannot be auto-selected, even
+// if the LLM flagged it as isSafeDefault.
+const DESTRUCTIVE_EN = /\b(delete|remove|overwrite|drop|rm|destroy|wipe|erase|discard|reset|force)\b/i;
+const DESTRUCTIVE_ZH = /删除|清空|覆盖|销毁|抹除|重置|丢弃|强制/;
+// Safe no-op verbs — heuristic fallback when no explicit isSafeDefault.
+const SAFE_NOOP_EN = /\b(skip|cancel|abort|keep|none|don't|dont|preserve|ignore)\b/i;
+const SAFE_NOOP_ZH = /跳过|取消|保留|保持|忽略|不要|放弃/;
+
+function isDestructive(text: string): boolean {
+  return DESTRUCTIVE_EN.test(text) || DESTRUCTIVE_ZH.test(text);
+}
+
+function isSafeNoop(text: string): boolean {
+  return SAFE_NOOP_EN.test(text) || SAFE_NOOP_ZH.test(text);
+}
+
+type SafeOption = NonNullable<AskUserQuestion['options']>[number];
+type SafePick = { option: SafeOption; source: 'explicit' | 'heuristic' };
+
+function pickSafeDefault(options: AskUserQuestion['options']): SafePick | undefined {
+  if (!options?.length) return undefined;
+
+  // Layer 1: explicit LLM hint wins — but only if it doesn't look destructive.
+  // If multiple options are tagged, treat as unreliable and fall through.
+  const tagged = options.filter((o) => o.isSafeDefault);
+  if (tagged.length === 1) {
+    const t = tagged[0];
+    if (!isDestructive(`${t.label} ${t.value}`)) {
+      return { option: t, source: 'explicit' };
+    }
+  }
+
+  // Layer 2: heuristic — first option whose label/value matches safe no-op
+  // keywords AND is not destructive (e.g. "skip deletion" = safe, "delete" alone = destructive)
+  for (const o of options) {
+    const text = `${o.label} ${o.value}`;
+    if (isSafeNoop(text) && !isDestructive(text)) {
+      return { option: o, source: 'heuristic' };
+    }
+  }
+
+  // Layer 3: give up — no auto-select, caller falls back to echo branch.
+  return undefined;
+}
+
+function buildTimeoutResponse(question: AskUserQuestion): { response: string; autoSelected?: string } {
+  const safe = pickSafeDefault(question.options);
+  if (safe) {
+    const note = safe.source === 'heuristic'
+      ? ' (picked by heuristic — no explicit safe marker was set)'
+      : '';
+    return {
+      response: `[Auto-fallback after 5-minute timeout: selected "${safe.option.label}" (value: ${safe.option.value})${note}. Treat this as a best-effort default, not a real user choice.]`,
+      autoSelected: safe.option.value,
+    };
+  }
+  const optionsEcho = question.options?.length
+    ? ` Available options were: ${question.options.map((o) => `"${o.label}" (${o.value})`).join(', ')}.`
+    : '';
+  return {
+    response: `[Timeout on question "${question.question}" after 5 minutes.${optionsEcho} Proceed with best judgment. DO NOT re-invoke ask_user for this question.]`,
+  };
+}
+
 export class ThreadManager {
   private agents: Map<string, Agent> = new Map();
   private skillControllers: Map<string, { setRequestedSkill(name: string | null): void }> = new Map();
   private askUserResolvers: Map<string, (response: string) => void> = new Map();
+  private askUserTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private askUserTimedOutThreads: Set<string> = new Set();
   public onStreamDelta?: (threadId: string, event: any) => void;
   public onStateChange?: (event: AgentStateEvent) => void;
   public onPlanUpdate?: (threadId: string, items: any[]) => void;
   public onAskUser?: (threadId: string, question: AskUserQuestion) => void;
+  public onAskUserTimeout?: (threadId: string, autoSelectedValue?: string) => void;
 
   constructor(
     private db: Database,
@@ -29,15 +100,33 @@ export class ThreadManager {
     setAskUserHandler((q) => this.handleAskUser(q));
   }
 
-  /** Called when agent invokes ask_user — sends to renderer and waits */
+  /** Called when agent invokes ask_user — sends to renderer and waits (with 5-min timeout) */
   private handleAskUser(question: AskUserQuestion): Promise<string> {
     // Find which thread is currently streaming (the one that called ask_user)
     // Use a simple heuristic: the thread with an active agent
     const threadId = this.activeThreadId;
     if (!threadId) return Promise.resolve('[No active thread]');
 
+    // Short-circuit: if an earlier ask_user in this session already timed out,
+    // skip blocking on subsequent questions until the user sends a new message.
+    if (this.askUserTimedOutThreads.has(threadId)) {
+      return Promise.resolve(ASK_USER_UNRESPONSIVE_RESPONSE);
+    }
+
     return new Promise<string>((resolve) => {
       this.askUserResolvers.set(threadId, resolve);
+      const timer = setTimeout(() => {
+        // Only timeout-resolve if this resolver is still pending
+        if (this.askUserResolvers.get(threadId) === resolve) {
+          this.askUserResolvers.delete(threadId);
+          this.askUserTimers.delete(threadId);
+          this.askUserTimedOutThreads.add(threadId);
+          const { response, autoSelected } = buildTimeoutResponse(question);
+          this.onAskUserTimeout?.(threadId, autoSelected);
+          resolve(response);
+        }
+      }, ASK_USER_TIMEOUT_MS);
+      this.askUserTimers.set(threadId, timer);
       this.onAskUser?.(threadId, question);
     });
   }
@@ -45,10 +134,14 @@ export class ThreadManager {
   /** Called from IPC when user responds to ask_user card */
   respondToAskUser(threadId: string, response: string): void {
     const resolve = this.askUserResolvers.get(threadId);
-    if (resolve) {
-      this.askUserResolvers.delete(threadId);
-      resolve(response);
+    if (!resolve) return;
+    this.askUserResolvers.delete(threadId);
+    const timer = this.askUserTimers.get(threadId);
+    if (timer) {
+      clearTimeout(timer);
+      this.askUserTimers.delete(threadId);
     }
+    resolve(response);
   }
 
   private activeThreadId: string | null = null;
@@ -69,6 +162,7 @@ export class ThreadManager {
 
   deleteThread(id: string): void {
     this.abortAgent(id);
+    this.respondToAskUser(id, '[Thread deleted]');
     this.agents.delete(id);
     this.skillControllers.delete(id);
     this.db.deleteThread(id);
@@ -80,6 +174,8 @@ export class ThreadManager {
 
   async *sendMessage(threadId: string, text: string, skillName?: string): AsyncGenerator<AssistantMessage | ToolMessage> {
     this.activeThreadId = threadId;
+    // Fresh user message clears prior ask_user timeout short-circuit for this thread
+    this.askUserTimedOutThreads.delete(threadId);
     const agent = await this.getOrCreateAgent(threadId);
 
     // Set requested skill if provided (e.g., from QuickCard click)
