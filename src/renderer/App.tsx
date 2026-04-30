@@ -8,6 +8,7 @@ import { ChatPanel } from './components/ChatPanel/ChatPanel';
 import { InputBox } from './components/InputBox/InputBox';
 import { PreviewPanel } from './components/PreviewPanel/PreviewPanel';
 import { Welcome } from './components/Welcome/Welcome';
+import { ReviewToast } from './components/ReviewToast';
 import { useAgent } from './hooks/useAgent';
 import { useThread } from './hooks/useThread';
 
@@ -25,6 +26,7 @@ export function App() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [previewContent, setPreviewContent] = useState('');
   const [fileRefreshKey, setFileRefreshKey] = useState(0);
+  const [pendingSkillRefreshKey, setPendingSkillRefreshKey] = useState(0);
   const [previewAnimated, setPreviewAnimated] = useState(false);
   // Guard: when true, live streaming preview is active — skip disk reads that would overwrite it
   const isLivePreviewingRef = useRef(false);
@@ -314,6 +316,7 @@ export function App() {
           selectedFile={previewFile}
           onSelectFile={handleSelectFile}
           fileRefreshKey={fileRefreshKey}
+          pendingSkillRefreshKey={pendingSkillRefreshKey}
         />
         {activeThread && messages.length > 0 ? (
           <ChatPanel title={activeThread.title} messages={messages} streamingText={streamingText} isStreaming={isStreaming} onSuggestionSelect={(text) => activeThreadId && sendMessage(activeThreadId, text)}>
@@ -350,6 +353,7 @@ export function App() {
           <PreviewPanel file={previewFile} content={previewContent} animated={previewAnimated} />
         )}
       </div>
+      <ReviewToast onReviewComplete={() => setPendingSkillRefreshKey((k) => k + 1)} />
     </div>
   );
 }
