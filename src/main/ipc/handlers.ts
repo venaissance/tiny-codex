@@ -1,15 +1,18 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { IPC } from '../../shared/ipc-channels';
 import type { ThreadManager } from '../thread-manager';
+import type { Database } from '../db';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { readSkillFrontMatter } from '../../agent/skills/skill-reader';
+import { registerSkillPendingHandlers } from '../handlers/skill-pending';
+import { registerSearchHandlers } from '../handlers/search';
 
 const execAsync = promisify(exec);
 
-export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () => BrowserWindow | null, appRoot: string): void {
+export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () => BrowserWindow | null, appRoot: string, db?: Database): void {
   // Thread handlers
   ipcMain.handle(IPC.THREAD_CREATE, async (_event, params) => {
     return threadManager.createThread(params);
@@ -50,6 +53,20 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
       win.webContents.send(IPC.AGENT_PLAN_UPDATE, { threadId, items });
     }
   };
+
+  // Background-review completion forwarding (Phase 4)
+  threadManager.onReviewComplete = (threadId, event) => {
+    const win = getWindow();
+    if (win) {
+      win.webContents.send(IPC.REVIEW_COMPLETE, { threadId, ...event });
+    }
+  };
+
+  // Skill pending queue (skill_create) handlers
+  registerSkillPendingHandlers();
+
+  // Cross-thread message search (FTS5 with LIKE fallback)
+  if (db) registerSearchHandlers(db);
 
   ipcMain.handle(IPC.AGENT_SEND_MESSAGE, async (_event, threadId: string, text: string, skillName?: string) => {
     const win = getWindow();

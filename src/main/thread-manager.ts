@@ -8,6 +8,7 @@ import type { StreamCallback } from '../community/stream-types';
 import { createUserMessage } from '../foundation/messages';
 import type { AssistantMessage, ToolMessage } from '../foundation/messages/types';
 import type { AgentStateEvent, Trajectory } from '../agent/trajectory';
+import type { ReviewCompleteEvent } from '../agent/middlewares/background-review';
 import type { AskUserQuestion } from '../coding/tools/ask-user';
 import { setAskUserHandler } from '../coding/tools';
 
@@ -90,6 +91,7 @@ export class ThreadManager {
   public onPlanUpdate?: (threadId: string, items: any[]) => void;
   public onAskUser?: (threadId: string, question: AskUserQuestion) => void;
   public onAskUserTimeout?: (threadId: string, autoSelectedValue?: string) => void;
+  public onReviewComplete?: (threadId: string, event: ReviewCompleteEvent) => void;
 
   constructor(
     private db: Database,
@@ -254,6 +256,7 @@ export class ThreadManager {
       threadId,
       onStateChange: (event) => this.onStateChange?.(event),
       onPlanUpdate: (items) => this.onPlanUpdate?.(threadId, items),
+      onReviewComplete: (event) => this.onReviewComplete?.(threadId, event),
       historyMessages,
     });
 

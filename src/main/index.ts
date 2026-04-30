@@ -96,7 +96,7 @@ app.whenReady().then(async () => {
 
   const threadManager = new ThreadManager(db, providers, APP_ROOT);
 
-  registerIpcHandlers(threadManager, () => mainWindow, APP_ROOT);
+  registerIpcHandlers(threadManager, () => mainWindow, APP_ROOT, db);
 
   mainWindow = createMainWindow();
   mainWindow.on('closed', () => { mainWindow = null; });
