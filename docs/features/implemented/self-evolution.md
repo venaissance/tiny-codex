@@ -59,7 +59,9 @@
 
 - USER.md 创建时自动注入 `<!-- LOCAL ONLY -->` 头与说明注释。
 - 该文件存于 `~/.tiny-codex/`（home 目录），不在任何项目根，**默认不会被项目 git 提交**。
-- **责任声明**：trajectory / session 导出功能（如果未来添加）必须显式过滤 USER.md。当前 v1 没有上传通道，零风险。
+- **隐私边界来自"没有导出路径"，不是来自 header 注释**。v1 没有任何代码把 USER.md 写到磁盘以外的地方（没有 trajectory export、没有 session sync、没有 sharing），所以 USER.md 的内容只会被 `buildMemoryPrelude` 拼进当前 session 的 system prompt 进行本地推理。
+- **`<!-- LOCAL ONLY -->` header 是文档，不是 enforcement**。它只是给读到这个文件的人/代码一个提示，**没有 runtime 过滤器**在检查它。如果未来加入 trajectory export / sync / share 任何出口路径，必须在**那个出口点**加真正的过滤逻辑（按文件路径排除 + 按内容头匹配），否则 USER.md 会被一并带走 —— 当前的 header 注释挡不住任何东西。
+- **当前 v1 风险**：零（因为没有出口）。**未来风险点**：任何序列化 system prompt 或 memory snapshot 到外部的功能都会触发，必须配套加 export-time guard。
 
 ## 4 个关键决策对照
 
@@ -68,7 +70,7 @@
 | Q1 review 模型 | `glm-4.5-flash`（默认，可改 `CODEX_REVIEW_MODEL`） | `background-review.ts:11` |
 | Q2 用户感知 | Toast 通知 | `ReviewToast.tsx` + `IPC.REVIEW_COMPLETE` |
 | Q3 Skill 审批 | Pending 队列 + 显式 Confirm/Reject | `skill-pending.ts` |
-| Q4 USER.md 本地 | `~/.tiny-codex/memory/USER.md` + LOCAL ONLY 头 | `store.ts:renderHeader` |
+| Q4 USER.md 本地 | `~/.tiny-codex/memory/USER.md`（home 目录隔离 + 无导出路径；header 是文档不是 enforcement） | `store.ts:renderHeader` |
 
 ## 数据布局
 

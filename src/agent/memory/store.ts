@@ -9,9 +9,15 @@ import type { MemorySnapshot, MemoryTarget } from './types';
  * truncate; old memory survives — sessions decide what to load via
  * loadMemory().
  *
- * USER.md notice (Q4): every freshly-created USER.md is initialised with a
- * "<!-- LOCAL ONLY -->" header. Code reading USER.md should treat this header
- * as a tripwire — exporters/sharers must filter it out and refuse to upload.
+ * USER.md privacy (Q4): every freshly-created USER.md gets a
+ * "<!-- LOCAL ONLY -->" header. This header is **documentation, not
+ * enforcement** — there is no runtime filter. The actual privacy guarantee
+ * comes from the fact that v1 has no export/sync code path: USER.md lives at
+ * ~/.tiny-codex/memory/USER.md (home dir, not inside any project), it is
+ * loaded into the local session's system prompt only, and nothing serialises
+ * it off-disk. If a future feature adds trajectory export, sync, or sharing,
+ * it MUST add a real filter at that egress point — the comment header alone
+ * will not stop it.
  */
 export class MemoryStore {
   private readonly snapshot: MemorySnapshot;
