@@ -59,6 +59,13 @@ export class BackgroundReviewMiddleware implements AgentMiddleware {
   private turnsSinceMemory = 0;
   private itersSinceSkill = 0;
   private inFlight: Promise<void> = Promise.resolve();
+  /**
+   * Drop-not-queue concurrency gate (H3). When a review is already running
+   * we skip new triggers entirely instead of chaining them. Without this, a
+   * 50-tool-call run can fan out 5 simultaneous reviews against the same
+   * provider (GLM), causing 429s under realistic load.
+   */
+  private busy = false;
   private trace: NonSystemMessage[] = [];
 
   constructor(private readonly options: BackgroundReviewOptions) {}
@@ -107,15 +114,27 @@ export class BackgroundReviewMiddleware implements AgentMiddleware {
       messages: this.trace.slice(-REVIEW_HISTORY_TAIL),
     };
     if (snapshot.messages.length === 0) return;
+
+    // H3: drop the trigger if another review is already in flight. Queueing
+    // here would just shift load — we'd still hit the provider 5+ times
+    // back-to-back when a long run rolls past multiple thresholds. The next
+    // threshold crossing will produce a fresh snapshot anyway, so we lose
+    // little by skipping.
+    if (this.busy) return;
+
+    this.busy = true;
     const scheduler = this.options.scheduler ?? ((cb) => setImmediate(cb));
     const work = new Promise<void>((resolve) => {
       scheduler(() => {
         this.runReview(mode, snapshot)
           .catch((err) => console.error('[background-review] failed:', err))
-          .finally(() => resolve());
+          .finally(() => {
+            this.busy = false;
+            resolve();
+          });
       });
     });
-    // Chain so flush() awaits all queued reviews.
+    // Chain so flush() awaits the work that we DID let through.
     this.inFlight = this.inFlight.then(() => work);
   }
 

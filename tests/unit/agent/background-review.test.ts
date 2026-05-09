@@ -197,4 +197,72 @@ describe('BackgroundReviewMiddleware', () => {
     await mw.flush();
     expect(provider.calls).toHaveLength(0);
   });
+
+  /**
+   * H3 regression: a 50-tool-call run used to produce 5 simultaneous review
+   * spawns against the provider, causing 429s. The drop-not-queue
+   * concurrency gate keeps only the first one alive while the rest are
+   * silently dropped. This test makes sure even a burst of 5 threshold
+   * crossings before any review completes still results in exactly ONE
+   * provider call.
+   */
+  it('drops overlapping reviews when one is already in flight (H3)', async () => {
+    const snap = await loadMemory(projectDir);
+    const store = new MemoryStore(snap);
+
+    // Block the provider until we manually release it. While it's blocked,
+    // any further afterAgentStep / afterToolUse threshold crossings should
+    // be dropped.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const provider: ModelProvider = {
+      async invoke() {
+        await gate;
+        return { role: 'assistant', content: [{ type: 'text', text: 'noop' }] } as AssistantMessage;
+      },
+    };
+    let invokeCount = 0;
+    const wrapped: ModelProvider = {
+      async invoke(params) {
+        invokeCount++;
+        return provider.invoke(params);
+      },
+    };
+
+    const events: ReviewCompleteEvent[] = [];
+    const mw = new BackgroundReviewMiddleware({
+      memoryStore: store,
+      provider: wrapped,
+      memoryNudgeTurns: 1,
+      skillNudgeIters: 1,
+      // Use a real microtask scheduler so the busy flag is set before the
+      // next afterAgentStep runs synchronously.
+      scheduler: (cb) => Promise.resolve().then(cb),
+      onReviewComplete: (e) => events.push(e),
+    });
+
+    // Seed the trace.
+    await mw.afterModel({ role: 'assistant', content: [{ type: 'text', text: 'init' }] });
+
+    // Five back-to-back threshold crossings. The first should kick off a
+    // review; the next four must be dropped because busy=true.
+    await mw.afterAgentStep(1);
+    await mw.afterToolUse({ type: 'tool_use', id: 't1', name: 'bash', input: {} }, 'log');
+    await mw.afterAgentStep(2);
+    await mw.afterToolUse({ type: 'tool_use', id: 't2', name: 'bash', input: {} }, 'log');
+    await mw.afterAgentStep(3);
+
+    // Let the microtask scheduler run and start the in-flight review.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Now release the provider so the in-flight review can finish.
+    release();
+    await mw.flush();
+
+    expect(invokeCount).toBe(1);
+    expect(events).toHaveLength(1);
+  });
 });
