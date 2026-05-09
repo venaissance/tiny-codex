@@ -5,8 +5,9 @@ import { Collapsible } from './Collapsible';
 import { FileList } from './FileList';
 import { ProgressList, type ProgressStep } from './ProgressList';
 import { ContextList, type ContextItem } from './ContextList';
+import { PendingSkillList } from './PendingSkillList';
 
-export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNewThread, onSkillClick, projectPath, progressSteps, contextItems, selectedFile, onSelectFile, fileRefreshKey }: {
+export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNewThread, onSkillClick, projectPath, progressSteps, contextItems, selectedFile, onSelectFile, fileRefreshKey, pendingSkillRefreshKey }: {
   threads: Array<{ id: string; title: string; updatedAt: number }>;
   skills: SkillInfo[];
   activeThreadId: string | null;
@@ -19,6 +20,7 @@ export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNew
   selectedFile?: string | null;
   onSelectFile?: (filePath: string) => void;
   fileRefreshKey?: number;
+  pendingSkillRefreshKey?: number;
 }) {
   const sidebarRef = useRef<HTMLElement>(null);
 
@@ -55,6 +57,10 @@ export function Sidebar({ threads, skills, activeThreadId, onSelectThread, onNew
 
       <Collapsible title="SKILLS" defaultOpen={true}>
         <SkillList skills={skills} onSelect={onSkillClick} />
+      </Collapsible>
+
+      <Collapsible title="PENDING SKILLS">
+        <PendingSkillList refreshKey={pendingSkillRefreshKey} />
       </Collapsible>
 
       <Collapsible title="FILES" defaultOpen={true}>

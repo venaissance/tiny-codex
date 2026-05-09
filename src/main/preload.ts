@@ -59,6 +59,15 @@ contextBridge.exposeInMainWorld('api', {
   },
   respondToAskUser: (threadId: string, response: string) => ipcRenderer.invoke(IPC.AGENT_ASK_USER_RESPOND, threadId, response),
   listSkills: (projectPath: string) => ipcRenderer.invoke(IPC.SKILL_LIST, projectPath),
+  listPendingSkills: () => ipcRenderer.invoke(IPC.SKILL_LIST_PENDING),
+  confirmPendingSkill: (name: string) => ipcRenderer.invoke(IPC.SKILL_CONFIRM, name),
+  rejectPendingSkill: (name: string) => ipcRenderer.invoke(IPC.SKILL_REJECT, name),
+  searchMessages: (query: string, limit?: number) => ipcRenderer.invoke(IPC.SESSION_SEARCH, query, limit),
+  onReviewComplete: (cb: (data: any) => void) => {
+    const handler = (_: any, data: any) => cb(data);
+    ipcRenderer.on(IPC.REVIEW_COMPLETE, handler);
+    return () => ipcRenderer.removeListener(IPC.REVIEW_COMPLETE, handler);
+  },
   openProject: () => ipcRenderer.invoke(IPC.FILE_OPEN_PROJECT),
   commit: (message: string) => ipcRenderer.invoke(IPC.FILE_COMMIT, message),
   getDiffStats: () => ipcRenderer.invoke(IPC.GIT_DIFF_STATS),

@@ -20,7 +20,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/license/venaissance/tiny-codex" alt="License" />
   <img src="https://img.shields.io/github/v/release/venaissance/tiny-codex" alt="Release" />
-  <img src="https://img.shields.io/badge/tests-259%20passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-304%20passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/platform-macOS-blue" alt="Platform" />
 </p>
 
@@ -77,6 +77,7 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **Thread isolation** — Each thread has its own agent. Switching threads auto-aborts the previous one. Stream events filtered by threadId.
 - **Hot reload** — `DEV_MODE=1` watches `dist/renderer/` and auto-reloads the window (skipped during streaming).
 - **Worktree mode** — Run agent in an isolated git branch. Safe experimentation.
+- 🌱 **Self-Evolution** — Agent learns from your sessions: dual-store memory (`~/.tiny-codex/memory/{MEMORY,USER}.md`), background review every 10 turns proposes new skills to a pending queue you confirm.
 
 ### Providers
 
@@ -86,6 +87,18 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 | GLM (ZhipuAI) | Yes | Streaming enabled (URL bug fixed) |
 | Doubao/ARK | Yes | ByteDance Volcano Engine |
 | OpenAI | Yes | Any OpenAI-compatible endpoint |
+
+## Self-Evolution
+
+TinyCodex gets smarter the more you use it:
+
+- **Dual-store memory** at `~/.tiny-codex/memory/` — `MEMORY.md` (project conventions, tool patterns) + `USER.md` (your preferences, marked `<!-- LOCAL ONLY -->`, stays on your machine)
+- **Background review middleware** — every 10 agent steps, an async review agent (default `glm-4.5-flash` via `CODEX_REVIEW_MODEL` env) inspects your trajectory and decides what's worth remembering
+- **Skill auto-creation with approval gate** — proposed skills land in `~/.tiny-codex/skills/_pending/`; sidebar "PENDING SKILLS" section lets you Confirm or Reject before they activate
+- **FTS5 full-text search** over conversation history with CJK fallback (Chinese / Japanese / Korean queries)
+- **Privacy first** — all memory and pending skills stay local; nothing uploads
+
+See [`docs/features/implemented/self-evolution.md`](docs/features/implemented/self-evolution.md) for design notes.
 
 ## Quick Start
 

@@ -20,7 +20,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/license/venaissance/tiny-codex" alt="License" />
   <img src="https://img.shields.io/github/v/release/venaissance/tiny-codex" alt="Release" />
-  <img src="https://img.shields.io/badge/tests-259%20passed-brightgreen" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-304%20passed-brightgreen" alt="Tests" />
   <img src="https://img.shields.io/badge/platform-macOS-blue" alt="Platform" />
 </p>
 
@@ -77,6 +77,7 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 - **线程隔离** — 每个线程独立 Agent。切换线程自动终止前一个。流式事件按 threadId 过滤。
 - **热更新** — `DEV_MODE=1` 监听 `dist/renderer/` 变化自动刷新窗口（streaming 时跳过）。
 - **Worktree 模式** — 在隔离的 git 分支中运行 Agent。安全实验。
+- 🌱 **自我进化** — Agent 从你的会话中学习：双存储记忆（`~/.tiny-codex/memory/{MEMORY,USER}.md`）、每 10 轮的后台审查会向待审队列提出新 skill 候选，你确认后才激活。
 
 ### 模型提供商
 
@@ -86,6 +87,18 @@ https://github.com/user-attachments/assets/d48351a3-be5d-4de1-a045-e8a7facb007f
 | GLM (智谱) | 支持 | 流式已启用（URL bug 已修复） |
 | 豆包/ARK | 支持 | 字节跳动火山引擎 |
 | OpenAI | 支持 | 任何 OpenAI 兼容端点 |
+
+## 自我进化
+
+用得越多，TinyCodex 越懂你：
+
+- **双存储记忆** 位于 `~/.tiny-codex/memory/` — `MEMORY.md`（项目约定、工具使用习惯）+ `USER.md`（你的个人偏好，带 `<!-- LOCAL ONLY -->` 标记，仅保留在本机）
+- **后台审查中间件** — 每 10 个 Agent step，异步审查 Agent（默认 `glm-4.5-flash`，通过 `CODEX_REVIEW_MODEL` 环境变量切换）检查你的轨迹，决定什么值得记下来
+- **Skill 自动创建 + 人工审批** — 提案 skill 落到 `~/.tiny-codex/skills/_pending/`；侧边栏 "PENDING SKILLS" 区域提供 Confirm / Reject 按钮，确认后才激活
+- **FTS5 全文搜索** 覆盖整个会话历史，中日韩查询自动回退到 LIKE 匹配
+- **隐私优先** — 所有记忆和待审 skill 均在本机存储，不上传
+
+设计说明详见 [`docs/features/implemented/self-evolution.md`](docs/features/implemented/self-evolution.md)。
 
 ## 快速开始
 

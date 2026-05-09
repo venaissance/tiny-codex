@@ -5,6 +5,11 @@ import type { Model } from '../../foundation/models/model';
 import type { AgentStateEvent } from '../../agent/trajectory';
 import { createSkillsMiddleware } from '../../agent/skills';
 import { PlannerMiddleware } from '../../agent/middlewares/planner';
+import {
+  BackgroundReviewMiddleware,
+  type ReviewCompleteEvent,
+} from '../../agent/middlewares/background-review';
+import { loadMemory, MemoryStore, buildMemoryPrelude } from '../../agent/memory';
 import { standardTools } from '../tools';
 import { createUserMessage } from '../../foundation/messages';
 import type { NonSystemMessage } from '../../foundation/messages/types';
@@ -18,6 +23,7 @@ export interface CodingAgentOptions {
   onStateChange?: (event: AgentStateEvent) => void;
   onPlanUpdate?: (items: any[]) => void;
   historyMessages?: NonSystemMessage[];
+  onReviewComplete?: (event: ReviewCompleteEvent) => void;
 }
 
 export async function createCodingAgent(options: CodingAgentOptions): Promise<{ agent: Agent; skillsController: ReturnType<typeof createSkillsMiddleware> }> {
@@ -25,10 +31,16 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<{ 
   const skillsDirs = options.skillsDirs ?? [join(cwd, 'skills')];
   const messages: NonSystemMessage[] = [];
 
+  // Frozen memory snapshot — loaded once per session so the system prompt and
+  // prefix cache stay stable across turns. Mid-session writes go to disk only.
+  const memorySnapshot = await loadMemory(cwd);
+  const memoryStore = new MemoryStore(memorySnapshot);
+
+  let agentsContent = '';
   try {
     const agentsPath = join(cwd, 'AGENTS.md');
-    const content = await readFile(agentsPath, 'utf-8');
-    messages.push(createUserMessage('[AGENTS.md automatically loaded]\n' + content));
+    agentsContent = await readFile(agentsPath, 'utf-8');
+    messages.push(createUserMessage('[AGENTS.md automatically loaded]\n' + agentsContent));
   } catch {
     // No AGENTS.md
   }
@@ -40,7 +52,10 @@ export async function createCodingAgent(options: CodingAgentOptions): Promise<{ 
 
   const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Shanghai' }); // YYYY-MM-DD Beijing time
 
-  const prompt = `<agent name="tiny-codex" role="coding_assistant">
+  const memoryPrelude = buildMemoryPrelude(memorySnapshot);
+
+  const prompt = `${memoryPrelude}
+<agent name="tiny-codex" role="coding_assistant">
 You are a coding assistant. Use the provided tools to read, write, and modify files.
 Work in the project directory: ${cwd}
 Today's date: ${today}
@@ -55,15 +70,22 @@ The suggestions must be context-aware, specific, and actionable (not generic). E
 
   const skillsController = createSkillsMiddleware(skillsDirs);
 
+  const middlewares = [
+    skillsController.middleware,
+    ...(options.onPlanUpdate ? [new PlannerMiddleware({ onPlanUpdate: options.onPlanUpdate })] : []),
+    new BackgroundReviewMiddleware({
+      memoryStore,
+      provider: options.model.provider,
+      onReviewComplete: options.onReviewComplete,
+    }),
+  ];
+
   const agent = new Agent({
     model: options.model,
     prompt,
     messages,
     tools: standardTools,
-    middlewares: [
-      skillsController.middleware,
-      ...(options.onPlanUpdate ? [new PlannerMiddleware({ onPlanUpdate: options.onPlanUpdate })] : []),
-    ],
+    middlewares,
     maxSteps: options.maxSteps ?? 100,
     threadId: options.threadId,
     onStateChange: options.onStateChange,

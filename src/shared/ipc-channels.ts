@@ -19,6 +19,11 @@ export const IPC = {
   FILE_RENAME: 'file:renameFile',
   GIT_DIFF_STATS: 'git:diffStats',
   SKILL_LIST: 'skill:list',
+  SKILL_LIST_PENDING: 'skill:listPending',
+  SKILL_CONFIRM: 'skill:confirm',
+  SKILL_REJECT: 'skill:reject',
+  REVIEW_COMPLETE: 'review:complete',
+  SESSION_SEARCH: 'session:search',
   AGENT_ASK_USER: 'agent:askUser',
   AGENT_ASK_USER_RESPOND: 'agent:askUserRespond',
 } as const;
