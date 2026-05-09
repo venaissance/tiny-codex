@@ -206,6 +206,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * Compress the recent conversation into a single user-message string the
  * review agent can read. Tool outputs are truncated; thinking blocks are
  * dropped because they balloon token count without changing the verdict.
+ *
+ * Prompt-injection hardening (H2): every captured string runs through
+ * `sanitizeForExcerpt` before being concatenated. We strip the closing
+ * `</conversation_excerpt>` tag (so attackers can't end the excerpt early
+ * and inject sibling instructions), the literal `<system>` tag (so they
+ * can't impersonate the system), and a few common role-play prefixes.
+ * The replacement marker `[/redacted]` is kept short and visible so the
+ * curator agent can see *that* something was filtered without parsing the
+ * payload.
  */
 function renderConversationForReview(messages: NonSystemMessage[]): string {
   const lines: string[] = ['<conversation_excerpt>'];
@@ -214,23 +223,47 @@ function renderConversationForReview(messages: NonSystemMessage[]): string {
       const text = msg.content
         .map((c) => (c.type === 'text' ? c.text : `[${c.type}]`))
         .join(' ');
-      lines.push(`USER: ${truncate(text, 600)}`);
+      lines.push(`USER: ${sanitizeForExcerpt(truncate(text, 600))}`);
     } else if (msg.role === 'assistant') {
       for (const c of msg.content) {
-        if (c.type === 'text') lines.push(`ASSISTANT: ${truncate(c.text, 600)}`);
+        if (c.type === 'text') lines.push(`ASSISTANT: ${sanitizeForExcerpt(truncate(c.text, 600))}`);
         else if (c.type === 'tool_use') {
           const args = JSON.stringify(c.input).slice(0, 200);
-          lines.push(`TOOL_USE(${c.name}): ${args}`);
+          lines.push(`TOOL_USE(${c.name}): ${sanitizeForExcerpt(args)}`);
         }
       }
     } else if (msg.role === 'tool') {
       for (const c of msg.content) {
-        lines.push(`TOOL_RESULT: ${truncate(c.content, 400)}`);
+        lines.push(`TOOL_RESULT: ${sanitizeForExcerpt(truncate(c.content, 400))}`);
       }
     }
   }
   lines.push('</conversation_excerpt>');
   return lines.join('\n');
+}
+
+/**
+ * Pattern set tuned for closing-tag attacks against the excerpt wrapper plus
+ * a handful of obvious role-impersonation tells. Case-insensitive on the
+ * tag/role tokens so `<SYSTEM>` and `<System>` both get scrubbed.
+ *
+ * Exported for tests in tests/unit/agent/background-review-injection.test.ts.
+ */
+const INJECTION_PATTERNS: RegExp[] = [
+  /<\/conversation_excerpt>/gi,
+  /<conversation_excerpt>/gi, // attacker can't pre-open another wrapper
+  /<\/?system>/gi,
+  /<\|system\|>/gi,
+  /\bignore (?:all )?previous instructions\b/gi,
+  /\byou are now\b/gi,
+];
+
+export function sanitizeForExcerpt(text: string): string {
+  let out = text;
+  for (const re of INJECTION_PATTERNS) {
+    out = out.replace(re, '[/redacted]');
+  }
+  return out;
 }
 
 function truncate(text: string, max: number): string {
