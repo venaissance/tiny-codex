@@ -3,6 +3,7 @@ import { Database } from './db';
 import { Agent } from '../agent/agent';
 import { Model } from '../foundation/models/model';
 import { createCodingAgent } from '../coding/agents/create-agent';
+import { globalSkillsDir } from '../agent/skills';
 import type { ModelProvider } from '../foundation/models/provider';
 import type { StreamCallback } from '../community/stream-types';
 import { createUserMessage } from '../foundation/messages';
@@ -252,7 +253,14 @@ export class ThreadManager {
     const { agent, skillsController } = await createCodingAgent({
       model,
       cwd: thread.project_path,
-      skillsDirs: [join(this.appRoot, 'skills'), join(thread.project_path, 'skills')],
+      // Skill loader sources, in load order:
+      //  1. globalSkillsDir() — confirmed agent-proposed skills land in
+      //     ~/.tiny-codex/skills/ (Q3). Without this, confirmPendingSkill
+      //     mv's a skill into a dir that no agent ever reads.
+      //  2. appRoot/skills — built-in skills shipped with the binary.
+      //  3. projectPath/skills — project-local overrides.
+      // Earlier entries win on duplicate skill names (see skills-middleware).
+      skillsDirs: [globalSkillsDir(), join(this.appRoot, 'skills'), join(thread.project_path, 'skills')],
       threadId,
       onStateChange: (event) => this.onStateChange?.(event),
       onPlanUpdate: (items) => this.onPlanUpdate?.(threadId, items),

@@ -7,6 +7,7 @@ import { promisify } from 'util';
 import { readdir } from 'fs/promises';
 import { join } from 'path';
 import { readSkillFrontMatter } from '../../agent/skills/skill-reader';
+import { globalSkillsDir } from '../../agent/skills';
 import { registerSkillPendingHandlers } from '../handlers/skill-pending';
 import { registerSearchHandlers } from '../handlers/search';
 
@@ -168,9 +169,11 @@ export function registerIpcHandlers(threadManager: ThreadManager, getWindow: () 
   });
 
   ipcMain.handle(IPC.SKILL_LIST, async (_event, projectPath: string) => {
-    // Scan both app's built-in skills AND the opened project's skills
+    // Scan global confirmed-skills, app's built-in skills, and the opened
+    // project's skills. Mirrors the order used by the agent loader in
+    // thread-manager.ts so the renderer's skill list matches what the agent sees.
     const appSkillsDir = join(appRoot, 'skills');
-    const skillsDirs = [appSkillsDir, join(projectPath, 'skills')];
+    const skillsDirs = [globalSkillsDir(), appSkillsDir, join(projectPath, 'skills')];
     const skills: Array<{ name: string; description: string; path: string }> = [];
     const seen = new Set<string>();
     for (const dir of skillsDirs) {
